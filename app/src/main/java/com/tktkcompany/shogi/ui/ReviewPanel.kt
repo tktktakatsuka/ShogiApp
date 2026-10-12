@@ -53,7 +53,7 @@ import com.tktkcompany.shogi.ui.theme.WashiShade
 @Composable
 fun ReviewControls(review: ReviewUi, ai: AiUi?, viewModel: ShogiViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (viewModel.aiAvailable) AiRow(ai, onToggle = viewModel::toggleAi)
+        if (ai != null) AiResult(ai)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
             val canBack = review.index > 0 || review.isVariation
             val canForward = !review.isVariation && review.index < review.total
@@ -61,6 +61,7 @@ fun ReviewControls(review: ReviewUi, ai: AiUi?, viewModel: ShogiViewModel) {
             SumiButton("◀", Modifier.weight(1f), enabled = canBack, onClick = viewModel::reviewPrev)
             SumiButton("▶", Modifier.weight(1f), enabled = canForward, onClick = viewModel::reviewNext)
             SumiButton("⏭", Modifier.weight(1f), enabled = canForward, onClick = viewModel::reviewLast)
+            if (viewModel.aiAvailable) AiToggle(on = ai != null, Modifier.weight(1f), onClick = viewModel::toggleAi)
         }
         if (review.isVariation) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -80,31 +81,36 @@ fun ReviewControls(review: ReviewUi, ai: AiUi?, viewModel: ShogiViewModel) {
     }
 }
 
-/** AIの最善手の表示を切り替えるボタンと、最善手・形勢・読み筋。 */
+/** AIの最善手の表示を切り替えるボタン。 */
 @Composable
-private fun AiRow(ai: AiUi?, onToggle: () -> Unit) {
+private fun AiToggle(on: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .height(48.dp)
+            .background(if (on) AiHint else WashiShade.copy(alpha = 0f), RoundedCornerShape(10.dp))
+            .border(1.5.dp, AiHint, RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick),
+    ) {
+        Text(
+            "AI",
+            fontFamily = Mincho,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            color = if (on) Kinari else AiHint,
+        )
+    }
+}
+
+/** AIの最善手・形勢・読み筋。 */
+@Composable
+private fun AiResult(ai: AiUi) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth().height(46.dp),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .background(if (ai != null) AiHint else WashiShade, RoundedCornerShape(6.dp))
-                .border(1.dp, AiHint, RoundedCornerShape(6.dp))
-                .clickable(onClick = onToggle)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        ) {
-            Text(
-                "AIの最善手",
-                fontFamily = Mincho,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = if (ai != null) Kinari else AiHint,
-            )
-        }
-        if (ai == null) return@Row
+        Text("AI", fontFamily = Mincho, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = AiHint)
         Column(Modifier.weight(1f)) {
             val best = ai.line.firstOrNull()
             Text(

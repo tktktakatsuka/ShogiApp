@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
@@ -49,6 +50,12 @@ import com.tktkcompany.shogi.ui.theme.Mincho
 import com.tktkcompany.shogi.ui.theme.Shu
 import com.tktkcompany.shogi.ui.theme.Sumi
 import kotlinx.coroutines.delay
+
+/** 感想戦で盤以外に必要な高さの目安(上部の表示・駒台・操作ボタンと、チャット欄を使える最低限の高さ)。 */
+private val REVIEW_RESERVED_HEIGHT = 560.dp
+
+/** 感想戦でAIの最善手を表示しているときに増える高さ。 */
+private val REVIEW_AI_HEIGHT = 54.dp
 
 @Composable
 fun GameScreen(viewModel: ShogiViewModel) {
@@ -83,7 +90,9 @@ fun GameScreen(viewModel: ShogiViewModel) {
             val review = state.review
             TopBar(
                 title = when {
-                    review != null -> "感想戦"
+                    // 感想戦では場所を節約するため、手数もここに表示する
+                    review != null -> "感想戦　${review.index} / ${review.total}手" +
+                        if (review.isVariation) "(変化 ${review.variationNotations.size}手)" else ""
                     else -> state.online?.let { "部屋 ${it.code}" } ?: state.mode.label
                 },
                 backLabel = if (review != null) "‹ 感想戦を終える" else "‹ メニュー",
@@ -113,8 +122,11 @@ fun GameScreen(viewModel: ShogiViewModel) {
             ) {
                 BoardView(
                     modifier = if (review != null) {
-                        // 感想戦ではチャット欄の場所を空けるため盤を少し小さくする
-                        Modifier.fillMaxWidth(0.8f)
+                        // 感想戦ではチャット欄の場所を空けるため盤を少し小さくする。
+                        // 画面が短い端末ではさらに小さくする(駒を押しにくくならない幅までにとどめる)
+                        val screen = LocalConfiguration.current
+                        val reserved = REVIEW_RESERVED_HEIGHT + if (state.ai != null) REVIEW_AI_HEIGHT else 0.dp
+                        Modifier.width((screen.screenHeightDp.dp - reserved).coerceIn(maxWidth * 0.6f, maxWidth * 0.8f))
                     } else {
                         Modifier.width(minOf(maxWidth, maxHeight))
                     },
@@ -228,8 +240,8 @@ private fun StatusBar(state: UiState) {
     val result = state.result
     val review = state.review
     val text = when {
-        review != null -> "感想戦　${review.index} / ${review.total}手" +
-            if (review.isVariation) "(変化 ${review.variationNotations.size}手)" else ""
+        // 感想戦の手数は上のバーに表示している
+        review != null -> null
         result != null -> "対局終了 ― ${result.message}"
         state.cpuThinking -> "CPUが考えています…"
         else -> buildString {
@@ -242,13 +254,15 @@ private fun StatusBar(state: UiState) {
         }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = text,
-            fontFamily = Mincho,
-            fontWeight = FontWeight.Bold,
-            fontSize = 17.sp,
-            color = if (state.inCheck && result == null) Shu else Sumi,
-        )
+        if (text != null) {
+            Text(
+                text = text,
+                fontFamily = Mincho,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                color = if (state.inCheck && result == null) Shu else Sumi,
+            )
+        }
         Text(
             text = state.lastMoveNotation?.let { "直前の手　$it" } ?: "対局開始",
             fontFamily = Mincho,
