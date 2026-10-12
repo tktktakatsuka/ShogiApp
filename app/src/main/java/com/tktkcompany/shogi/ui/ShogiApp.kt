@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tktkcompany.shogi.game.PieceType
+import com.tktkcompany.shogi.ui.components.AdBanner
 import com.tktkcompany.shogi.ui.components.PieceView
 import com.tktkcompany.shogi.ui.components.ShuButton
 import com.tktkcompany.shogi.ui.components.SumiButton
@@ -106,7 +107,26 @@ private fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .washiBackground()
-            .safeDrawingPadding()
+            .safeDrawingPadding(),
+    ) {
+        HomeMenu(onlineAvailable, onlineProblem, soundEnabled, onToggleSound, onStart, onOnline, Modifier.weight(1f))
+        AdBanner()
+    }
+}
+
+@Composable
+private fun HomeMenu(
+    onlineAvailable: Boolean,
+    onlineProblem: String?,
+    soundEnabled: Boolean,
+    onToggleSound: () -> Unit,
+    onStart: (GameMode) -> Unit,
+    onOnline: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
             .padding(horizontal = 32.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),

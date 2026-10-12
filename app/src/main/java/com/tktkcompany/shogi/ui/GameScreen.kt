@@ -36,6 +36,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tktkcompany.shogi.ui.components.AdBanner
 import com.tktkcompany.shogi.ui.components.BoardView
 import com.tktkcompany.shogi.ui.components.PieceStandView
 import com.tktkcompany.shogi.ui.components.ShuButton
@@ -130,7 +131,6 @@ fun GameScreen(viewModel: ShogiViewModel) {
             ReviewBottomPanel(state, viewModel, Modifier.weight(1f))
             return@Column
         }
-        Spacer(Modifier.weight(1f))
         if (state.partnerInReview) {
             Text("相手が感想戦を始めました", fontFamily = Mincho, color = Shu, fontWeight = FontWeight.Bold)
         }
@@ -153,6 +153,10 @@ fun GameScreen(viewModel: ShogiViewModel) {
                 ShuButton("新規対局", Modifier.weight(1f)) { viewModel.startLocalGame(state.mode) }
             }
         }
+        // 広告は押し間違えないようボタンから離して画面の一番下に置く。
+        // 感想戦中は棋譜とチャットの場所を取るため表示しない
+        Spacer(Modifier.weight(1f))
+        AdBanner()
     }
 
     GameDialogs(

@@ -62,6 +62,25 @@ GPLv3 に従ってエンジンのソースコードを入手できるように�
 - やねうら王: https://github.com/yaneurao/YaneuraOu
 - 水匠5(同梱版): https://github.com/mizar/YaneuraOu/releases/tag/v7.6.3
 
+## 広告(AdMob)の設定
+
+ホーム画面と対局画面の一番下にバナー広告を表示します(感想戦中は表示しません)。
+設定しなくてもビルドでき、その場合は Google のテスト広告(「Test Ad」と表示されるもの)が出ます。
+
+1. [AdMob](https://admob.google.com/) でアプリを追加し、**バナー**の広告ユニットを作る
+2. `local.properties`(リポジトリには入らないファイル)に次の2行を足す
+
+   ```
+   admobAppId=ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy
+   admobBannerId=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz
+   ```
+
+3. **release** ビルドを作ると本物の広告になる
+
+- debug ビルド(Android Studio の ▶ Run)では、設定していても必ずテスト広告になります。
+  開発中に本物の広告を表示・タップすると AdMob の規約違反になり、アカウントが停止されることがあるためです
+- EU などの利用者にも公開する場合は、広告の同意確認(UMP SDK)の追加が必要です
+
 ## できること
 
 - 和風デザイン: 木目調の五角形の駒(駒の種類で大きさが違う)、榧風の盤・星・筋と段の数字、和紙風の背景、明朝体
@@ -106,7 +125,7 @@ app/src/main/java/com/tktkcompany/shogi/
     ├── GameScreen.kt        対局画面(盤・駒台・ボタン・ダイアログ・王手の演出)
     ├── ReviewPanel.kt       感想戦の操作ボタン・棋譜一覧・チャット欄
     ├── SoundPlayer.kt       効果音(res/raw/koma.wav)
-    ├── components/          盤・駒・駒台・和紙の背景・ボタンの部品
+    ├── components/          盤・駒・駒台・和紙の背景・ボタン・バナー広告の部品
     └── theme/Theme.kt       和の配色と明朝体
 ```
 

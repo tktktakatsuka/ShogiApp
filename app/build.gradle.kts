@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -9,6 +11,18 @@ plugins {
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 }
+
+// 広告(AdMob)の ID。リリース版では gradle.properties か local.properties の
+// admobAppId / admobBannerId を使う。未設定のときと debug 版では Google のテスト用 ID を使う
+// (開発中に本物の広告を表示・タップすると AdMob の規約違反になるため)。
+val admobTestAppId = "ca-app-pub-3940256099942544~3347511713"
+val admobTestBannerId = "ca-app-pub-3940256099942544/9214589741"
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+fun admobId(name: String, testId: String): String =
+    (localProperties.getProperty(name) ?: providers.gradleProperty(name).orNull)?.takeIf { it.isNotBlank() } ?: testId
 
 android {
     namespace = "com.tktkcompany.shogi"
@@ -25,7 +39,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders["admobAppId"] = admobTestAppId
+            buildConfigField("String", "ADMOB_BANNER_ID", "\"$admobTestBannerId\"")
+        }
         release {
+            manifestPlaceholders["admobAppId"] = admobId("admobAppId", admobTestAppId)
+            buildConfigField("String", "ADMOB_BANNER_ID", "\"${admobId("admobBannerId", admobTestBannerId)}\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -42,6 +62,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         // 検討用エンジン(jniLibs の libyaneuraou.so)は別プロセスとして実行するので、
@@ -64,6 +85,7 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.database)
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.play.services.ads)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
