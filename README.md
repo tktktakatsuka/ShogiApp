@@ -4,8 +4,8 @@ Kotlin + Jetpack Compose で作った Android 向け将棋アプリです。
 
 ## Android Studio で開く
 
-1. Android Studio を起動し **File > Open** を選ぶ
-2. このリポジトリの **`ShogiApp` フォルダ** を選択して開く(リポジトリのルートではありません)
+1. このリポジトリを clone する(Android Studio の **File > New > Project from Version Control** でも可)
+2. **File > Open** で clone したフォルダ(リポジトリのルート)を開く
 3. Gradle Sync が終わったら、エミュレータか実機を選んで ▶ Run
 
 ※ Android Studio から AGP / ライブラリの更新を提案された場合は、そのままアップデートして構いません。
