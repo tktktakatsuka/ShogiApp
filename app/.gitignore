@@ -1,3 +1,5 @@
 /build
 # 検討用エンジン(scripts/build-engine.ps1 で作る。1つ約60MBあるのでリポジトリには入れない)
 /src/main/jniLibs/
+# Android Studio で作った署名済みのリリース(AAB/APK)
+/release/
