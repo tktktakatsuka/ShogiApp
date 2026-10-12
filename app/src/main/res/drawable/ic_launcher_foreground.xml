@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 将棋の駒の形(五角形) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#F7E3B5"
+        android:strokeColor="#3E2A14"
+        android:strokeWidth="2.5"
+        android:pathData="M54,30 L70,38 L75,78 L33,78 L38,38 Z" />
+    <path
+        android:fillColor="#3E2A14"
+        android:pathData="M46,50 h16 v3 h-16 z M53,46 h2 v26 h-2 z M44,62 h20 v3 h-20 z" />
+</vector>
