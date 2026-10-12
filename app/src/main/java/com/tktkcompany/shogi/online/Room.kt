@@ -2,12 +2,27 @@ package com.tktkcompany.shogi.online
 
 import com.tktkcompany.shogi.game.Game
 import com.tktkcompany.shogi.game.Player
+import com.tktkcompany.shogi.game.ReviewState
 import com.tktkcompany.shogi.game.Usi
 
 enum class RoomStatus { WAITING, PLAYING, FINISHED }
 
 /** サーバー上に保存された1手。by は指したプレイヤーのユーザーID。 */
 data class RemoteMove(val usi: String, val by: String)
+
+/** チャットの発言。 */
+data class ChatMessage(val id: String, val by: String, val text: String, val at: Long)
+
+/** サーバー上の感想戦の状態(変化手順は USI 形式)。 */
+data class RemoteReview(val index: Int, val variation: List<String>, val by: String? = null) {
+    /** 解釈できない手が含まれていればそこで打ち切る。 */
+    fun toState(): ReviewState =
+        ReviewState(index, variation.map { Usi.parse(it) ?: return ReviewState(index, emptyList()) })
+
+    companion object {
+        fun from(state: ReviewState) = RemoteReview(state.index, state.variation.map(Usi::format))
+    }
+}
 
 /**
  * 対局部屋の状態。部屋を作った人(host)が先手、参加した人(guest)が後手。
@@ -19,6 +34,8 @@ data class Room(
     val status: RoomStatus,
     val moves: List<RemoteMove>,
     val resignedBy: String?,
+    val review: RemoteReview? = null,
+    val chat: List<ChatMessage> = emptyList(),
 ) {
     fun colorOf(uid: String): Player? = when (uid) {
         hostUid -> Player.SENTE

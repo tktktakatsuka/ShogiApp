@@ -5,20 +5,72 @@
         ".read": "auth != null",
         ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() === auth.uid) || (data.exists() && newData.exists() && (data.child('hostUid').val() === auth.uid || data.child('guestUid').val() === auth.uid || (!data.child('guestUid').exists() && newData.child('guestUid').val() === auth.uid && newData.child('hostUid').val() === data.child('hostUid').val()))))",
         ".validate": "$code.matches(/^[0-9]{6}$/) && newData.hasChildren(['hostUid', 'status'])",
-        "hostUid": { ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())" },
-        "guestUid": { ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())" },
-        "status": { ".validate": "newData.val() === 'waiting' || newData.val() === 'playing' || newData.val() === 'finished'" },
-        "createdAt": { ".validate": "newData.isNumber()" },
-        "resignedBy": { ".validate": "newData.val() === auth.uid" },
+        "hostUid": {
+          ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())"
+        },
+        "guestUid": {
+          ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())"
+        },
+        "status": {
+          ".validate": "newData.val() === 'waiting' || newData.val() === 'playing' || newData.val() === 'finished'"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "resignedBy": {
+          ".validate": "newData.val() === auth.uid"
+        },
         "moves": {
           "$index": {
             ".validate": "newData.hasChildren(['usi', 'by']) && (data.exists() ? (newData.child('usi').val() === data.child('usi').val() && newData.child('by').val() === data.child('by').val()) : newData.child('by').val() === auth.uid)",
-            "usi": { ".validate": "newData.isString() && newData.val().length <= 5" },
-            "by": { ".validate": "newData.isString()" },
-            "$other": { ".validate": false }
+            "usi": {
+              ".validate": "newData.isString() && newData.val().length <= 5"
+            },
+            "by": {
+              ".validate": "newData.isString()"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         },
-        "$other": { ".validate": false }
+        "review": {
+          ".validate": "newData.hasChildren(['index', 'by'])",
+          "index": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+          },
+          "by": {
+            ".validate": "newData.val() === auth.uid"
+          },
+          "variation": {
+            "$i": {
+              ".validate": "newData.isString() && newData.val().length <= 5"
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "chat": {
+          "$msg": {
+            ".validate": "!data.exists() && newData.hasChildren(['by', 'text', 'at'])",
+            "by": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "text": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+            },
+            "at": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     }
   }

@@ -13,11 +13,14 @@ import com.tktkcompany.shogi.game.Move
 import com.tktkcompany.shogi.game.PieceType
 import com.tktkcompany.shogi.game.Player
 import com.tktkcompany.shogi.game.Position
+import com.tktkcompany.shogi.game.Review
+import com.tktkcompany.shogi.game.ReviewState
 import com.tktkcompany.shogi.game.Square
 import com.tktkcompany.shogi.game.Usi
 import com.tktkcompany.shogi.online.FirebaseOnlineRepository
 import com.tktkcompany.shogi.online.OnlineRepository
 import com.tktkcompany.shogi.online.RemoteMove
+import com.tktkcompany.shogi.online.RemoteReview
 import com.tktkcompany.shogi.online.Room
 import com.tktkcompany.shogi.online.RoomStatus
 import kotlinx.coroutines.CancellationException
@@ -50,6 +53,20 @@ data class LobbyState(
     val error: String? = null,
 )
 
+/** 感想戦の表示内容。 */
+data class ReviewUi(
+    /** 本譜の何手目の局面から見ているか。 */
+    val index: Int,
+    /** 本譜の手数。 */
+    val total: Int,
+    val isVariation: Boolean,
+    val variationNotations: List<String>,
+    val mainNotations: List<String>,
+)
+
+/** チャットの1行。 */
+data class ChatLine(val id: String, val text: String, val mine: Boolean)
+
 data class UiState(
     val position: Position,
     val mode: GameMode,
@@ -66,6 +83,11 @@ data class UiState(
     val moveCount: Int = 0,
     val online: OnlineSession? = null,
     val error: String? = null,
+    /** 感想戦中なら non-null。 */
+    val review: ReviewUi? = null,
+    val chat: List<ChatLine> = emptyList(),
+    /** オンラインで相手が感想戦を始めたが、自分はまだ入っていない。 */
+    val partnerInReview: Boolean = false,
 ) {
     val inCheck: Boolean get() = position.isInCheck(position.turn)
 
@@ -90,6 +112,11 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     private var roomJob: Job? = null
     private var online: OnlineSession? = null
     private var resultDismissed = false
+    private var latestRoom: Room? = null
+
+    /** 感想戦中なら non-null。 */
+    private var review: Review? = null
+    private var reviewState = ReviewState(0)
 
     /** Firebase が設定されていればオンライン対戦を使える。 */
     val onlineAvailable: Boolean get() = repository != null
@@ -123,6 +150,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         stopOnline()
         cpuJob?.cancel()
         game = Game()
+        review = null
         resultDismissed = false
         state = UiState(game.position, mode)
         screen = Screen.GAME
@@ -191,6 +219,8 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         roomJob?.cancel()
         roomJob = null
         online = null
+        latestRoom = null
+        review = null
     }
 
     private fun observeRoom(repo: OnlineRepository, code: String, uid: String) {
@@ -214,7 +244,14 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         val replay = room.replay(current = if (online == null) null else game)
         val firstUpdate = online == null
         online = OnlineSession(room.code, uid, myColor)
+        latestRoom = room
         game = replay.game
+        // 相手が動かした感想戦の局面に合わせる
+        val activeReview = review
+        val remote = room.review
+        if (activeReview != null && remote != null) {
+            reviewState = activeReview.normalize(remote.toState())
+        }
         if (firstUpdate) {
             resultDismissed = false
             state = UiState(game.position, GameMode.ONLINE, viewer = myColor, online = online)
@@ -226,11 +263,82 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ---- 感想戦 ----
+
+    /** 終局後に感想戦を始める。オンラインでは相手と局面を共有する。 */
+    fun startReview() {
+        if (!game.isOver || review != null) return
+        val r = Review(game.moves)
+        review = r
+        resultDismissed = true
+        val remote = latestRoom?.review
+        reviewState = if (remote != null) r.normalize(remote.toState()) else r.end()
+        refresh()
+        // 相手に感想戦を始めたことを知らせる(相手がすでに始めていれば、その局面に合わせるだけ)
+        if (remote == null) shareReview()
+    }
+
+    fun exitReview() {
+        review = null
+        refresh()
+    }
+
+    fun reviewFirst() = updateReview { it.jumpTo(0) }
+    fun reviewPrev() = updateReview { r -> r.back(reviewState) }
+    fun reviewNext() = updateReview { r -> r.forward(reviewState) }
+    fun reviewLast() = updateReview { it.end() }
+    fun reviewJumpTo(index: Int) = updateReview { it.jumpTo(index) }
+    fun reviewBackToMainLine() = updateReview { r -> r.backToMainLine(reviewState) }
+
+    private fun updateReview(change: (Review) -> ReviewState) {
+        val r = review ?: return
+        val next = change(r)
+        if (next == reviewState) return
+        reviewState = next
+        refresh()
+        shareReview()
+    }
+
+    private fun shareReview() {
+        val session = online ?: return
+        val repo = repository ?: return
+        val shared = RemoteReview.from(reviewState)
+        viewModelScope.launch {
+            try {
+                repo.sendReview(session.code, session.uid, shared)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                state = state.copy(error = e.message ?: "感想戦の局面を共有できませんでした")
+            }
+        }
+    }
+
+    /** チャットを送る(オンラインのみ)。 */
+    fun sendChat(text: String) {
+        val session = online ?: return
+        val repo = repository ?: return
+        val message = text.trim().take(200)
+        if (message.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                repo.sendChat(session.code, session.uid, message)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                state = state.copy(error = e.message ?: "メッセージを送れませんでした")
+            }
+        }
+    }
+
+    /** 盤に表示している局面(感想戦中は感想戦の局面)。 */
+    private fun displayPosition(): Position = review?.positionOf(reviewState) ?: game.position
+
     // ---- 対局操作 ----
 
     fun onSquareTapped(square: Square) {
         if (!canHumanMove()) return
-        val position = game.position
+        val position = displayPosition()
         val selection = state.selection
         if (selection != null && square in state.targets) {
             val candidates = when (selection) {
@@ -257,14 +365,15 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onHandPieceTapped(owner: Player, type: PieceType) {
-        if (!canHumanMove() || owner != game.position.turn) return
+        val position = displayPosition()
+        if (!canHumanMove() || owner != position.turn) return
         val sel = Selection.InHand(type)
         state = if (state.selection == sel) {
             state.copy(selection = null, targets = emptySet())
         } else {
             state.copy(
                 selection = sel,
-                targets = game.position.legalDrops(type).map { it.to }.toSet(),
+                targets = position.legalDrops(type).map { it.to }.toSet(),
             )
         }
     }
@@ -326,9 +435,11 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         state = state.copy(error = null)
     }
 
-    fun canUndo(): Boolean = state.mode != GameMode.ONLINE && state.moveCount > 0
+    fun canUndo(): Boolean = state.mode != GameMode.ONLINE && review == null && state.moveCount > 0
 
     private fun canHumanMove(): Boolean {
+        // 感想戦ではどちらの駒も動かせる
+        if (review != null) return true
         if (game.isOver || state.cpuThinking) return false
         val turn = game.position.turn
         return when (state.mode) {
@@ -339,6 +450,14 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun play(move: Move) {
+        val r = review
+        if (r != null) {
+            val next = r.play(reviewState, move) ?: return
+            reviewState = next
+            refresh()
+            shareReview()
+            return
+        }
         if (!game.play(move)) return
         refresh()
         when (state.mode) {
@@ -375,18 +494,38 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun refresh() {
         if (game.result == null) resultDismissed = false
+        val r = review
+        val view = r?.view(reviewState)
+        val position = view?.position ?: game.position
+        // 局面が変わらない更新(チャットの受信など)では、駒の選択を解除しない
+        val samePosition = position === state.position || position.toSfen() == state.position.toSfen()
+        val myUid = online?.uid
         state = state.copy(
-            position = game.position,
-            selection = null,
-            targets = emptySet(),
-            lastMove = game.lastMove,
-            lastMoveNotation = game.lastMoveNotation,
-            pendingPromotion = null,
+            position = position,
+            selection = if (samePosition) state.selection else null,
+            targets = if (samePosition) state.targets else emptySet(),
+            lastMove = if (view != null) view.lastMove else game.lastMove,
+            lastMoveNotation = if (view != null) view.lastMoveNotation else game.lastMoveNotation,
+            pendingPromotion = if (samePosition) state.pendingPromotion else null,
             result = game.result,
             showResultDialog = game.result != null && !resultDismissed,
             cpuThinking = false,
-            moveCount = game.moveCount,
+            moveCount = view?.ply ?: game.moveCount,
             online = online,
+            review = if (r != null && view != null) {
+                ReviewUi(
+                    index = reviewState.index.coerceIn(0, r.size),
+                    total = r.size,
+                    isVariation = view.variationNotations.isNotEmpty(),
+                    variationNotations = view.variationNotations,
+                    mainNotations = r.mainNotations,
+                )
+            } else {
+                null
+            },
+            chat = latestRoom?.chat.orEmpty().map { ChatLine(it.id, it.text, mine = it.by == myUid) },
+            partnerInReview = r == null && game.isOver &&
+                latestRoom?.review?.by.let { it != null && it != myUid },
         )
     }
 

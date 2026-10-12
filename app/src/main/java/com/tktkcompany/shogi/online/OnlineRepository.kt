@@ -20,6 +20,12 @@ interface OnlineRepository {
     suspend fun sendMove(code: String, index: Int, move: RemoteMove)
 
     suspend fun resign(code: String, uid: String)
+
+    /** 感想戦で見ている局面を共有する。 */
+    suspend fun sendReview(code: String, uid: String, review: RemoteReview)
+
+    /** チャットを送る。 */
+    suspend fun sendChat(code: String, uid: String, text: String)
 }
 
 class OnlineException(message: String) : Exception(message)

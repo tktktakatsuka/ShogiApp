@@ -53,7 +53,14 @@ fun GameScreen(viewModel: ShogiViewModel) {
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmResign by remember { mutableStateOf(false) }
     val leaveNeedsConfirm = state.mode == GameMode.ONLINE && state.result == null
-    val leave: () -> Unit = { if (leaveNeedsConfirm) confirmLeave = true else viewModel.backToHome() }
+    val leave: () -> Unit = {
+        when {
+            // 感想戦中は対局終了の盤面に戻る
+            state.review != null -> viewModel.exitReview()
+            leaveNeedsConfirm -> confirmLeave = true
+            else -> viewModel.backToHome()
+        }
+    }
 
     BackHandler(onBack = leave)
     MoveFeedback(moveCount = state.moveCount, enabled = viewModel.soundEnabled)
@@ -67,8 +74,13 @@ fun GameScreen(viewModel: ShogiViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        val review = state.review
         TopBar(
-            title = state.online?.let { "部屋 ${it.code}" } ?: state.mode.label,
+            title = when {
+                review != null -> "感想戦"
+                else -> state.online?.let { "部屋 ${it.code}" } ?: state.mode.label
+            },
+            backLabel = if (review != null) "‹ 感想戦を終える" else "‹ メニュー",
             soundEnabled = viewModel.soundEnabled,
             onToggleSound = viewModel::toggleSound,
             onBack = leave,
@@ -82,13 +94,16 @@ fun GameScreen(viewModel: ShogiViewModel) {
             owner = top,
             viewer = state.viewer,
             name = state.nameOf(top),
-            isTurn = state.result == null && state.position.turn == top,
+            isTurn = (review != null || state.result == null) && state.position.turn == top,
             hand = state.position.handOf(top),
             selected = handSelection?.takeIf { state.position.turn == top },
             onTap = viewModel::onHandPieceTapped,
+            compact = review != null,
         )
         Box(contentAlignment = Alignment.Center) {
             BoardView(
+                // 感想戦ではチャット欄の場所を空けるため盤を少し小さくする
+                modifier = if (review != null) Modifier.fillMaxWidth(0.8f) else Modifier,
                 position = state.position,
                 viewer = state.viewer,
                 selected = (state.selection as? Selection.OnBoard)?.square,
@@ -103,12 +118,28 @@ fun GameScreen(viewModel: ShogiViewModel) {
             owner = bottom,
             viewer = state.viewer,
             name = state.nameOf(bottom),
-            isTurn = state.result == null && state.position.turn == bottom,
+            isTurn = (review != null || state.result == null) && state.position.turn == bottom,
             hand = state.position.handOf(bottom),
             selected = handSelection?.takeIf { state.position.turn == bottom },
             onTap = viewModel::onHandPieceTapped,
+            compact = review != null,
         )
+        if (review != null) {
+            ReviewControls(review, viewModel)
+            ReviewBottomPanel(state, viewModel, Modifier.weight(1f))
+            return@Column
+        }
         Spacer(Modifier.weight(1f))
+        if (state.partnerInReview) {
+            Text("相手が感想戦を始めました", fontFamily = Mincho, color = Shu, fontWeight = FontWeight.Bold)
+        }
+        if (state.result != null) {
+            ShuButton(
+                if (state.online != null) "感想戦(チャットで話しながら)" else "感想戦",
+                Modifier.fillMaxWidth(),
+                onClick = viewModel::startReview,
+            )
+        }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -150,9 +181,15 @@ private fun MoveFeedback(moveCount: Int, enabled: Boolean) {
 }
 
 @Composable
-private fun TopBar(title: String, soundEnabled: Boolean, onToggleSound: () -> Unit, onBack: () -> Unit) {
+private fun TopBar(
+    title: String,
+    backLabel: String,
+    soundEnabled: Boolean,
+    onToggleSound: () -> Unit,
+    onBack: () -> Unit,
+) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        TextButton(onClick = onBack) { Text("‹ メニュー", color = Sumi, fontFamily = Mincho) }
+        TextButton(onClick = onBack) { Text(backLabel, color = Sumi, fontFamily = Mincho) }
         Text(
             title,
             fontFamily = Mincho,
@@ -172,7 +209,10 @@ private fun TopBar(title: String, soundEnabled: Boolean, onToggleSound: () -> Un
 private fun StatusBar(state: UiState) {
     val online = state.online
     val result = state.result
+    val review = state.review
     val text = when {
+        review != null -> "感想戦　${review.index} / ${review.total}手" +
+            if (review.isVariation) "(変化 ${review.variationNotations.size}手)" else ""
         result != null -> "対局終了 ― ${result.message}"
         state.cpuThinking -> "CPUが考えています…"
         else -> buildString {
@@ -275,14 +315,17 @@ private fun GameDialogs(
             },
             text = { Text("${state.moveCount}手で${result.message}", fontFamily = Mincho) },
             confirmButton = {
-                if (online != null) {
-                    ShuButton("メニューへ", onClick = viewModel::backToHome)
-                } else {
-                    ShuButton("もう一局") { viewModel.startLocalGame(state.mode) }
-                }
+                ShuButton("感想戦", onClick = viewModel::startReview)
             },
             dismissButton = {
-                TextButton(onClick = viewModel::dismissResult) { Text("盤面を見る", color = Sumi) }
+                Row {
+                    if (online != null) {
+                        TextButton(onClick = viewModel::backToHome) { Text("メニューへ", color = Sumi) }
+                    } else {
+                        TextButton(onClick = { viewModel.startLocalGame(state.mode) }) { Text("もう一局", color = Sumi) }
+                    }
+                    TextButton(onClick = viewModel::dismissResult) { Text("閉じる", color = Sumi) }
+                }
             },
         )
     }

@@ -58,11 +58,13 @@ fun PieceStandView(
     selected: PieceType?,
     onTap: (Player, PieceType) -> Unit,
     modifier: Modifier = Modifier,
+    /** 感想戦など、画面の縦幅を節約したいときは小さく表示する。 */
+    compact: Boolean = false,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(60.dp)
+            .height(if (compact) 46.dp else 60.dp)
             .shadow(3.dp, RoundedCornerShape(8.dp))
             .background(Brush.verticalGradient(listOf(StandLight, StandDark)), RoundedCornerShape(8.dp))
             .border(
@@ -84,6 +86,7 @@ fun PieceStandView(
                     count = count,
                     upsideDown = owner != viewer,
                     selected = type == selected,
+                    compact = compact,
                     onClick = { onTap(owner, type) },
                 )
             }
@@ -127,11 +130,18 @@ private fun PlayerTag(owner: Player, name: String, isTurn: Boolean) {
 }
 
 @Composable
-private fun HandPiece(type: PieceType, count: Int, upsideDown: Boolean, selected: Boolean, onClick: () -> Unit) {
+private fun HandPiece(
+    type: PieceType,
+    count: Int,
+    upsideDown: Boolean,
+    selected: Boolean,
+    compact: Boolean,
+    onClick: () -> Unit,
+) {
     val lift by animateDpAsState(if (selected) (-8).dp else 0.dp, label = "lift")
     Box(
         modifier = Modifier
-            .size(width = 38.dp, height = 52.dp)
+            .size(width = if (compact) 30.dp else 38.dp, height = if (compact) 42.dp else 52.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -142,7 +152,7 @@ private fun HandPiece(type: PieceType, count: Int, upsideDown: Boolean, selected
         PieceView(
             type = type,
             upsideDown = upsideDown,
-            height = 38.dp,
+            height = if (compact) 30.dp else 38.dp,
             elevation = if (selected) 10.dp else 2.dp,
             modifier = Modifier.offset(y = lift),
         )

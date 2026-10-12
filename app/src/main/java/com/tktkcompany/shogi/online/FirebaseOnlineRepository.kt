@@ -32,6 +32,8 @@ import kotlin.random.Random
  * rooms/{部屋番号}/
  *   hostUid, guestUid, status("waiting"|"playing"|"finished"), createdAt, resignedBy
  *   moves/{0,1,2,...}/ { usi, by }
+ *   review/ { index, variation: [usi...], by }    感想戦で見ている局面
+ *   chat/{自動ID}/ { by, text, at }               チャット
  * ```
  */
 class FirebaseOnlineRepository private constructor(
@@ -117,6 +119,20 @@ class FirebaseOnlineRepository private constructor(
         Unit
     }
 
+    override suspend fun sendReview(code: String, uid: String, review: RemoteReview): Unit = firebaseCall {
+        rooms.child(code).child("review")
+            .setValue(mapOf("index" to review.index, "variation" to review.variation, "by" to uid))
+            .await()
+        Unit
+    }
+
+    override suspend fun sendChat(code: String, uid: String, text: String): Unit = firebaseCall {
+        rooms.child(code).child("chat").push()
+            .setValue(mapOf("by" to uid, "text" to text, "at" to System.currentTimeMillis()))
+            .await()
+        Unit
+    }
+
     /**
      * Firebase の処理を時間制限付きで実行し、失敗したら原因がわかる日本語のメッセージに変換する。
      */
@@ -155,6 +171,26 @@ class FirebaseOnlineRepository private constructor(
             },
             moves = moves,
             resignedBy = child("resignedBy").getValue(String::class.java),
+            review = child("review").takeIf { it.exists() }?.let { r ->
+                RemoteReview(
+                    index = r.child("index").getValue(Int::class.java) ?: 0,
+                    variation = r.child("variation").children
+                        .sortedBy { it.key?.toIntOrNull() ?: Int.MAX_VALUE }
+                        .mapNotNull { it.getValue(String::class.java) },
+                    by = r.child("by").getValue(String::class.java),
+                )
+            },
+            // 自動IDは時刻順に並ぶ
+            chat = child("chat").children.mapNotNull { m ->
+                val by = m.child("by").getValue(String::class.java)
+                val text = m.child("text").getValue(String::class.java)
+                val id = m.key
+                if (by != null && text != null && id != null) {
+                    ChatMessage(id, by, text, m.child("at").getValue(Long::class.java) ?: 0L)
+                } else {
+                    null
+                }
+            }.sortedBy { it.id },
         )
     }
 
