@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 将棋の駒の形(五角形) -->
+<!-- 王将の駒 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- 影 -->
     <path
-        android:fillColor="#F7E3B5"
-        android:strokeColor="#3E2A14"
-        android:strokeWidth="2.5"
-        android:pathData="M54,30 L70,38 L75,78 L33,78 L38,38 Z" />
+        android:fillColor="#55000000"
+        android:pathData="M55.5,29 L67.5,36 L73.5,82 L37.5,82 L43.5,36 Z" />
+    <!-- 駒 -->
     <path
-        android:fillColor="#3E2A14"
-        android:pathData="M46,50 h16 v3 h-16 z M53,46 h2 v26 h-2 z M44,62 h20 v3 h-20 z" />
+        android:fillColor="#F8E2AE"
+        android:strokeColor="#8A5A26"
+        android:strokeWidth="1.2"
+        android:pathData="M54,27 L66,34 L72,80 L36,80 L42,34 Z" />
+    <!-- 王 -->
+    <path
+        android:fillColor="#1C1612"
+        android:pathData="M45.5,43 h17 v3.4 h-17 z M46.5,54.5 h15 v3.2 h-15 z M43.5,67.5 h21 v3.6 h-21 z M52.3,43 h3.4 v28 h-3.4 z" />
 </vector>

@@ -32,6 +32,9 @@ Kotlin + Jetpack Compose で作った Android 向け将棋アプリです。
 
 ## できること
 
+- 和風デザイン: 木目調の五角形の駒(駒の種類で大きさが違う)、榧風の盤・星・筋と段の数字、和紙風の背景、明朝体
+- 演出: 駒の移動アニメーション、駒を打つときの拡大→着地、「パチッ」という効果音と振動(オン/オフ可)、「王手」の表示、選んだ持ち駒が浮き上がる
+- 対局情報: プレイヤー名、手番を示す光るマーク、直前の手の棋譜表記(▲７六歩 など)、持ち駒の枚数バッジ
 - 平手の初期配置から対局
 - 2人対局 / CPU 対局(CPU は後手・駒得ベースのかんたんな思考)
 - オンライン対戦(部屋番号で相手と対局)
@@ -53,6 +56,7 @@ app/src/main/java/com/tktkcompany/shogi/
 │   ├── Position.kt          局面、合法手生成、王手・詰み判定、SFEN 入出力
 │   ├── Game.kt              対局の進行、待った、終局判定
 │   ├── Usi.kt               指し手の文字列表記(USI 形式)
+│   ├── Kifu.kt              日本式の棋譜表記(▲７六歩 など)
 │   └── Cpu.kt               CPU の思考
 ├── online/
 │   ├── Room.kt              対局部屋の状態とサーバーの指し手からの局面復元
@@ -61,8 +65,10 @@ app/src/main/java/com/tktkcompany/shogi/
 └── ui/
     ├── ShogiViewModel.kt    画面の状態管理
     ├── ShogiApp.kt          ホーム画面・オンライン対戦のロビー画面
-    ├── GameScreen.kt        盤・駒台・ボタンの対局画面
-    └── theme/Theme.kt       色
+    ├── GameScreen.kt        対局画面(盤・駒台・ボタン・ダイアログ・王手の演出)
+    ├── SoundPlayer.kt       効果音(res/raw/koma.wav)
+    ├── components/          盤・駒・駒台・和紙の背景・ボタンの部品
+    └── theme/Theme.kt       和の配色と明朝体
 ```
 
 ルール部分の単体テストは `app/src/test/` にあり、Android Studio で

@@ -58,6 +58,7 @@ data class UiState(
     val selection: Selection? = null,
     val targets: Set<Square> = emptySet(),
     val lastMove: Move? = null,
+    val lastMoveNotation: String? = null,
     val pendingPromotion: Pair<Move, Move>? = null,
     val result: GameResult? = null,
     val showResultDialog: Boolean = false,
@@ -67,6 +68,13 @@ data class UiState(
     val error: String? = null,
 ) {
     val inCheck: Boolean get() = position.isInCheck(position.turn)
+
+    /** 駒台に表示するプレイヤー名。 */
+    fun nameOf(player: Player): String = when (mode) {
+        GameMode.VS_HUMAN -> player.label
+        GameMode.VS_CPU -> if (player == Player.SENTE) "あなた" else "CPU"
+        GameMode.ONLINE -> if (player == online?.myColor) "あなた" else "相手"
+    }
 }
 
 class ShogiViewModel(application: Application) : AndroidViewModel(application) {
@@ -97,6 +105,17 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
 
     var state by mutableStateOf(UiState(game.position, GameMode.VS_CPU))
         private set
+
+    private val prefs = application.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+
+    /** 効果音・振動のオン/オフ(端末に保存する)。 */
+    var soundEnabled by mutableStateOf(prefs.getBoolean(KEY_SOUND, true))
+        private set
+
+    fun toggleSound() {
+        soundEnabled = !soundEnabled
+        prefs.edit().putBoolean(KEY_SOUND, soundEnabled).apply()
+    }
 
     // ---- 画面遷移 ----
 
@@ -361,6 +380,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             selection = null,
             targets = emptySet(),
             lastMove = game.lastMove,
+            lastMoveNotation = game.lastMoveNotation,
             pendingPromotion = null,
             result = game.result,
             showResultDialog = game.result != null && !resultDismissed,
@@ -368,5 +388,9 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             moveCount = game.moveCount,
             online = online,
         )
+    }
+
+    private companion object {
+        const val KEY_SOUND = "sound"
     }
 }

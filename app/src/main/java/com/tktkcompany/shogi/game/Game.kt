@@ -26,6 +26,14 @@ class Game(initial: Position = Position.initial()) {
     val moveCount: Int get() = moveList.size
     val lastMove: Move? get() = moveList.lastOrNull()
 
+    /** 直前の手の棋譜表記(例: "▲７六歩")。 */
+    val lastMoveNotation: String?
+        get() {
+            val move = lastMove ?: return null
+            val before = positions[positions.lastIndex - 1]
+            return Kifu.format(before, move, moveList.getOrNull(moveList.lastIndex - 1))
+        }
+
     var result: GameResult? = null
         private set
 
