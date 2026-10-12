@@ -8,6 +8,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,91 +74,101 @@ fun GameScreen(viewModel: ShogiViewModel) {
             .washiBackground()
             .safeDrawingPadding()
             .padding(horizontal = 10.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        val review = state.review
-        TopBar(
-            title = when {
-                review != null -> "感想戦"
-                else -> state.online?.let { "部屋 ${it.code}" } ?: state.mode.label
-            },
-            backLabel = if (review != null) "‹ 感想戦を終える" else "‹ メニュー",
-            soundEnabled = viewModel.soundEnabled,
-            onToggleSound = viewModel::toggleSound,
-            onBack = leave,
-        )
-        StatusBar(state)
-
-        val top = state.viewer.opponent
-        val bottom = state.viewer
-        val handSelection = (state.selection as? Selection.InHand)?.type
-        PieceStandView(
-            owner = top,
-            viewer = state.viewer,
-            name = state.nameOf(top),
-            isTurn = (review != null || state.result == null) && state.position.turn == top,
-            hand = state.position.handOf(top),
-            selected = handSelection?.takeIf { state.position.turn == top },
-            onTap = viewModel::onHandPieceTapped,
-            compact = review != null,
-        )
-        Box(contentAlignment = Alignment.Center) {
-            BoardView(
-                // 感想戦ではチャット欄の場所を空けるため盤を少し小さくする
-                modifier = if (review != null) Modifier.fillMaxWidth(0.8f) else Modifier,
-                position = state.position,
-                viewer = state.viewer,
-                selected = (state.selection as? Selection.OnBoard)?.square,
-                targets = state.targets,
-                lastMove = state.lastMove,
-                hintMove = state.ai?.bestMove,
-                moveCount = state.moveCount,
-                onSquareTapped = viewModel::onSquareTapped,
-            )
-            CheckFlash(moveCount = state.moveCount, inCheck = state.inCheck && state.result == null)
-        }
-        PieceStandView(
-            owner = bottom,
-            viewer = state.viewer,
-            name = state.nameOf(bottom),
-            isTurn = (review != null || state.result == null) && state.position.turn == bottom,
-            hand = state.position.handOf(bottom),
-            selected = handSelection?.takeIf { state.position.turn == bottom },
-            onTap = viewModel::onHandPieceTapped,
-            compact = review != null,
-        )
-        if (review != null) {
-            ReviewControls(review, state.ai, viewModel)
-            ReviewBottomPanel(state, viewModel, Modifier.weight(1f))
-            return@Column
-        }
-        if (state.partnerInReview) {
-            Text("相手が感想戦を始めました", fontFamily = Mincho, color = Shu, fontWeight = FontWeight.Bold)
-        }
-        if (state.result != null) {
-            ShuButton(
-                if (state.online != null) "感想戦(チャットで話しながら)" else "感想戦",
-                Modifier.fillMaxWidth(),
-                onClick = viewModel::startReview,
-            )
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (state.mode != GameMode.ONLINE) {
-                SumiButton("待った", Modifier.weight(1f), enabled = viewModel.canUndo(), onClick = viewModel::undo)
+            val review = state.review
+            TopBar(
+                title = when {
+                    review != null -> "感想戦"
+                    else -> state.online?.let { "部屋 ${it.code}" } ?: state.mode.label
+                },
+                backLabel = if (review != null) "‹ 感想戦を終える" else "‹ メニュー",
+                soundEnabled = viewModel.soundEnabled,
+                onToggleSound = viewModel::toggleSound,
+                onBack = leave,
+            )
+            StatusBar(state)
+
+            val top = state.viewer.opponent
+            val bottom = state.viewer
+            val handSelection = (state.selection as? Selection.InHand)?.type
+            PieceStandView(
+                owner = top,
+                viewer = state.viewer,
+                name = state.nameOf(top),
+                isTurn = (review != null || state.result == null) && state.position.turn == top,
+                hand = state.position.handOf(top),
+                selected = handSelection?.takeIf { state.position.turn == top },
+                onTap = viewModel::onHandPieceTapped,
+                compact = review != null,
+            )
+            BoxWithConstraints(
+                contentAlignment = Alignment.Center,
+                // 対局中は、画面が短い端末でもボタンと広告が収まるよう、残りの高さに合わせて盤を小さくする
+                modifier = if (review != null) Modifier else Modifier.weight(1f, fill = false),
+            ) {
+                BoardView(
+                    modifier = if (review != null) {
+                        // 感想戦ではチャット欄の場所を空けるため盤を少し小さくする
+                        Modifier.fillMaxWidth(0.8f)
+                    } else {
+                        Modifier.width(minOf(maxWidth, maxHeight))
+                    },
+                    position = state.position,
+                    viewer = state.viewer,
+                    selected = (state.selection as? Selection.OnBoard)?.square,
+                    targets = state.targets,
+                    lastMove = state.lastMove,
+                    hintMove = state.ai?.bestMove,
+                    moveCount = state.moveCount,
+                    onSquareTapped = viewModel::onSquareTapped,
+                )
+                CheckFlash(moveCount = state.moveCount, inCheck = state.inCheck && state.result == null)
             }
-            SumiButton("投了", Modifier.weight(1f), enabled = state.result == null) { confirmResign = true }
-            if (state.mode != GameMode.ONLINE) {
-                ShuButton("新規対局", Modifier.weight(1f)) { viewModel.startLocalGame(state.mode) }
+            PieceStandView(
+                owner = bottom,
+                viewer = state.viewer,
+                name = state.nameOf(bottom),
+                isTurn = (review != null || state.result == null) && state.position.turn == bottom,
+                hand = state.position.handOf(bottom),
+                selected = handSelection?.takeIf { state.position.turn == bottom },
+                onTap = viewModel::onHandPieceTapped,
+                compact = review != null,
+            )
+            if (review != null) {
+                ReviewControls(review, state.ai, viewModel)
+                ReviewBottomPanel(state, viewModel, Modifier.weight(1f))
+                return@Column
+            }
+            if (state.partnerInReview) {
+                Text("相手が感想戦を始めました", fontFamily = Mincho, color = Shu, fontWeight = FontWeight.Bold)
+            }
+            if (state.result != null) {
+                ShuButton(
+                    if (state.online != null) "感想戦(チャットで話しながら)" else "感想戦",
+                    Modifier.fillMaxWidth(),
+                    onClick = viewModel::startReview,
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (state.mode != GameMode.ONLINE) {
+                    SumiButton("待った", Modifier.weight(1f), enabled = viewModel.canUndo(), onClick = viewModel::undo)
+                }
+                SumiButton("投了", Modifier.weight(1f), enabled = state.result == null) { confirmResign = true }
+                if (state.mode != GameMode.ONLINE) {
+                    ShuButton("新規対局", Modifier.weight(1f)) { viewModel.startLocalGame(state.mode) }
+                }
             }
         }
-        // 広告は押し間違えないようボタンから離して画面の一番下に置く。
-        // 感想戦中は棋譜とチャットの場所を取るため表示しない
-        Spacer(Modifier.weight(1f))
-        AdBanner()
+        // 広告は画面の一番下に置く。感想戦中は棋譜とチャットの場所を取るため表示しない
+        if (state.review == null) AdBanner(Modifier.padding(top = 8.dp))
     }
 
     GameDialogs(
