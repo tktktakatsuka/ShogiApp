@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.tktkcompany.shogi.R
 import com.tktkcompany.shogi.UiText
+import com.tktkcompany.shogi.game.CpuLevel
 import com.tktkcompany.shogi.game.EndReason
 import com.tktkcompany.shogi.game.Evaluation
 import com.tktkcompany.shogi.game.GameResult
@@ -20,14 +21,34 @@ val Player.label: Int get() = if (this == Player.SENTE) R.string.player_sente el
 
 /** 駒台に表示するプレイヤー名。 */
 @Composable
-fun UiState.nameOf(player: Player): String = stringResource(
-    when {
-        mode == GameMode.VS_HUMAN -> player.label
-        isMe(player) -> R.string.you
-        mode == GameMode.VS_CPU -> R.string.cpu
-        else -> R.string.opponent
+fun UiState.nameOf(player: Player): String = when {
+    mode == GameMode.VS_HUMAN -> stringResource(player.label)
+    isMe(player) -> stringResource(R.string.you)
+    mode == GameMode.VS_CPU -> stringResource(R.string.cpu_with_level, stringResource(cpuLevel.label))
+    else -> stringResource(R.string.opponent)
+}
+
+/** CPU の強さの名前(「入門」「中級」など)。 */
+@get:StringRes
+val CpuLevel.label: Int
+    get() = when (this) {
+        CpuLevel.INTRO -> R.string.cpu_level_INTRO
+        CpuLevel.NOVICE -> R.string.cpu_level_NOVICE
+        CpuLevel.INTERMEDIATE -> R.string.cpu_level_INTERMEDIATE
+        CpuLevel.ADVANCED -> R.string.cpu_level_ADVANCED
+        CpuLevel.EXPERT -> R.string.cpu_level_EXPERT
     }
-)
+
+/** CPU の強さの目安(「ふだん将棋を指す方に」など)。 */
+@get:StringRes
+val CpuLevel.description: Int
+    get() = when (this) {
+        CpuLevel.INTRO -> R.string.cpu_level_INTRO_desc
+        CpuLevel.NOVICE -> R.string.cpu_level_NOVICE_desc
+        CpuLevel.INTERMEDIATE -> R.string.cpu_level_INTERMEDIATE_desc
+        CpuLevel.ADVANCED -> R.string.cpu_level_ADVANCED_desc
+        CpuLevel.EXPERT -> R.string.cpu_level_EXPERT_desc
+    }
 
 /** 終局の理由と結果(例: "詰み。先手の勝ち")。 */
 @Composable

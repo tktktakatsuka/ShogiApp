@@ -130,4 +130,23 @@
     <string name="online_error_detail">Network error: %1$s %2$s</string>
     <string name="online_not_initialized">Firebase is not initialized. Check that google-services.json is placed directly in the app folder under the name \"google-services.json\", then run Gradle Sync and rebuild</string>
     <string name="online_no_database">The Realtime Database URL is unknown. After creating a Realtime Database in Firebase, download google-services.json again and replace the old one (%1$s)</string>
+    <!-- CPU strength -->
+    <string name="cpu_level_title">Choose CPU strength</string>
+    <string name="cpu_level_INTRO">Intro</string>
+    <string name="cpu_level_NOVICE">Novice</string>
+    <string name="cpu_level_INTERMEDIATE">Intermediate</string>
+    <string name="cpu_level_ADVANCED">Advanced</string>
+    <string name="cpu_level_EXPERT">Expert</string>
+    <string name="cpu_level_INTRO_desc">Just learned the rules</string>
+    <string name="cpu_level_NOVICE_desc">Knows how the pieces move</string>
+    <string name="cpu_level_INTERMEDIATE_desc">Plays regularly</string>
+    <string name="cpu_level_ADVANCED_desc">Club level</string>
+    <string name="cpu_level_EXPERT_desc">Dan level and above</string>
+    <string name="cpu_with_level">CPU (%1$s)</string>
+
+    <!-- Invite -->
+    <string name="invite_line">Invite via LINE</string>
+    <string name="invite_other">Invite with another app</string>
+    <string name="invite_message">Let\'s play shogi! The room code is %1$s.\nTap the link to join:\n%2$s</string>
+    <string name="invite_busy">You can\'t join another room during an online game</string>
 </resources>

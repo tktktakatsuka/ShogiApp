@@ -12,6 +12,7 @@ import com.tktkcompany.shogi.UiText
 import com.tktkcompany.shogi.engine.UsiEngine
 import com.tktkcompany.shogi.game.Analysis
 import com.tktkcompany.shogi.game.Cpu
+import com.tktkcompany.shogi.game.CpuLevel
 import com.tktkcompany.shogi.game.Evaluation
 import com.tktkcompany.shogi.game.Game
 import com.tktkcompany.shogi.game.GameResult
@@ -117,6 +118,8 @@ data class UiState(
     val partnerInReview: Boolean = false,
     /** 感想戦でAIの最善手を表示中なら non-null(自分の画面だけに出る)。 */
     val ai: AiUi? = null,
+    /** CPU 対局の強さ。 */
+    val cpuLevel: CpuLevel = CpuLevel.INTRO,
 ) {
     val inCheck: Boolean get() = position.isInCheck(position.turn)
 
@@ -161,6 +164,10 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     /** エンジンがアプリに入っていれば、感想戦でAIの最善手を表示できる。 */
     val aiAvailable: Boolean = engine.isAvailable
 
+    /** 選べる CPU の強さ(エンジンがなければ内蔵の「入門」だけ)。 */
+    val cpuLevels: List<CpuLevel> =
+        if (engine.isAvailable) CpuLevel.entries else CpuLevel.entries.filter { !it.usesEngine }
+
     /** Firebase が設定されていればオンライン対戦を使える。 */
     val onlineAvailable: Boolean get() = repository != null
 
@@ -187,6 +194,13 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit().putBoolean(KEY_SOUND, soundEnabled).apply()
     }
 
+    /** 前回選んだ CPU の強さ(端末に保存する)。 */
+    var cpuLevel by mutableStateOf(
+        CpuLevel.entries.firstOrNull { it.name == prefs.getString(KEY_CPU_LEVEL, null) && it in cpuLevels }
+            ?: cpuLevels.first()
+    )
+        private set
+
     /** 棋譜の表記(端末の言語で決まる)。 */
     private var kifuStyle = KifuStyle.JAPANESE
 
@@ -205,13 +219,42 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startLocalGame(mode: GameMode) {
         stopOnline()
-        cpuJob?.cancel()
+        cancelCpu()
         game = Game()
         review = null
         stopAi()
         resultDismissed = false
-        state = UiState(game.position, mode)
+        state = UiState(game.position, mode, cpuLevel = cpuLevel)
         screen = Screen.GAME
+    }
+
+    /** 強さを選んで CPU と対局する。 */
+    fun startCpuGame(level: CpuLevel) {
+        if (level !in cpuLevels) return
+        cpuLevel = level
+        prefs.edit().putString(KEY_CPU_LEVEL, level.name).apply()
+        startLocalGame(GameMode.VS_CPU)
+    }
+
+    // ---- 招待リンク ----
+
+    /**
+     * 招待リンク(shogiapp://join?room=123456)から開かれたとき、その部屋に参加する。
+     * オンライン対局の途中なら、対局を壊さないよう参加しない。
+     */
+    fun openInvite(code: String) {
+        if (code.length != 6 || !code.all { it.isDigit() }) return
+        if (screen == Screen.GAME && state.mode == GameMode.ONLINE && !game.isOver) {
+            state = state.copy(error = UiText(R.string.invite_busy))
+            return
+        }
+        cancelCpu()
+        openLobby()
+        if (repository == null) {
+            lobby = LobbyState(error = onlineProblem ?: UiText(R.string.online_needs_firebase))
+            return
+        }
+        joinRoom(code)
     }
 
     fun openLobby() {
@@ -222,7 +265,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
 
     /** ホームへ戻る。オンライン対局中なら投了扱いにする。 */
     fun backToHome() {
-        cpuJob?.cancel()
+        cancelCpu()
         if (state.mode == GameMode.ONLINE && screen == Screen.GAME && !game.isOver) resign()
         stopOnline()
         screen = Screen.HOME
@@ -527,7 +570,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         when (state.mode) {
             GameMode.ONLINE -> return
             GameMode.VS_CPU -> {
-                cpuJob?.cancel()
+                cancelCpu()
                 // CPU戦では自分の手番まで戻す
                 game.undo()
                 if (game.position.turn == cpuPlayer) game.undo()
@@ -540,7 +583,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     /** 投了する。2人対局では手番側、CPU戦・オンラインでは自分が投了する。 */
     fun resign() {
         if (game.isOver) return
-        cpuJob?.cancel()
+        cancelCpu()
         when (state.mode) {
             GameMode.VS_HUMAN -> game.resign(game.position.turn)
             GameMode.VS_CPU -> game.resign(cpuPlayer.opponent)
@@ -619,13 +662,33 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun startCpuTurn() {
         state = state.copy(cpuThinking = true)
+        val level = state.cpuLevel
         cpuJob = viewModelScope.launch {
             val position = game.position
             delay(300)
-            val move = withContext(Dispatchers.Default) { cpu.chooseMove(position) }
+            val move = engineMove(position, level)
+                ?: withContext(Dispatchers.Default) { cpu.chooseMove(position) }
+            ensureActive()
             if (move != null) game.play(move)
             refresh()
         }
+    }
+
+    /** エンジンで CPU の手を選ぶ。エンジンを使わない強さ、またはエンジンが使えないときは null。 */
+    private suspend fun engineMove(position: Position, level: CpuLevel): Move? {
+        if (!level.usesEngine || !engine.isAvailable) return null
+        return try {
+            CpuLevel.pick(level, engine.think(position, level))?.takeIf { position.isLegal(it) }
+        } catch (e: IOException) {
+            // エンジンが動かなければ内蔵の思考で指す
+            null
+        }
+    }
+
+    /** CPU の思考を打ち切る。 */
+    private fun cancelCpu() {
+        if (cpuJob?.isActive == true) engine.stop()
+        cpuJob?.cancel()
     }
 
     private fun refresh() {
@@ -677,6 +740,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val KEY_SOUND = "sound"
+        const val KEY_CPU_LEVEL = "cpu_level"
 
         /** 実行できるのはネイティブライブラリとして入れたファイルだけなので、lib〜.so という名前にしている。 */
         const val ENGINE_FILE = "libyaneuraou.so"

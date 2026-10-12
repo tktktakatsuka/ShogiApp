@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>将棋対戦への招待</title>
+<meta name="description" content="将棋対戦アプリのオンライン対局に招待されました。">
+<style>
+  :root {
+    --sumi: #2b2622; --kinari: #f4ecdc; --washi: #e6d9bf; --shu: #b8382a; --kincha: #b8893b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; padding: 32px 16px;
+    background: linear-gradient(var(--kinari), var(--washi));
+    color: var(--sumi);
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+    display: flex; justify-content: center;
+  }
+  main { width: 100%; max-width: 420px; text-align: center; }
+  h1 { font-size: 30px; margin: 8px 0 4px; letter-spacing: 4px; }
+  .rule { width: 96px; height: 3px; background: var(--shu); margin: 0 auto 24px; }
+  .label { font-size: 15px; margin: 0 0 8px; }
+  .code {
+    display: inline-block; font-size: 44px; font-weight: 900; letter-spacing: 8px; color: var(--shu);
+    border: 2px solid var(--kincha); border-radius: 12px; background: var(--kinari); padding: 10px 20px 10px 28px;
+  }
+  .btn {
+    display: block; width: 100%; margin: 14px 0 0; padding: 15px; border-radius: 10px;
+    font: inherit; font-size: 18px; font-weight: 700; text-decoration: none; cursor: pointer;
+  }
+  .primary { background: var(--shu); color: var(--kinari); border: 1.5px solid var(--kincha); }
+  .secondary { background: transparent; color: var(--sumi); border: 1.5px solid var(--sumi); }
+  ol { text-align: left; line-height: 1.8; padding-left: 1.4em; margin: 24px 0 0; }
+  .note { font-size: 13px; opacity: .75; margin-top: 20px; line-height: 1.6; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>将棋対戦</h1>
+  <div class="rule"></div>
+
+  <div id="invite" class="hidden">
+    <p class="label">対局に招待されました。部屋番号</p>
+    <div class="code" id="code"></div>
+
+    <a class="btn primary" id="open">アプリで開いて参加する</a>
+    <a class="btn secondary" id="install">アプリを入れる(Google Play)</a>
+    <button class="btn secondary" id="copy" type="button">部屋番号をコピー</button>
+
+    <ol>
+      <li>アプリが入っていれば「アプリで開いて参加する」で、すぐに対局が始まります。</li>
+      <li>入っていない場合は Google Play からインストールし、アプリの「オンライン対戦」→「部屋に参加する」で上の部屋番号を入力してください。</li>
+    </ol>
+    <p class="note" id="ios-note" hidden>このアプリは Android 専用です。iPhone ではご利用いただけません。</p>
+  </div>
+
+  <div id="invalid" class="hidden">
+    <p>招待リンクが正しくありません。<br>招待した人に部屋番号を確認してください。</p>
+    <a class="btn primary" id="install2">アプリを入れる(Google Play)</a>
+  </div>
+
+  <p class="note"><a href="privacy-policy.html" style="color: inherit">プライバシーポリシー</a></p>
+</main>
+<script>
+  (function () {
+    var PACKAGE = 'com.tktkcompany.shogi';
+    var PLAY = 'https://play.google.com/store/apps/details?id=' + PACKAGE;
+    var room = new URLSearchParams(location.search).get('room') || '';
+    document.getElementById('install').href = PLAY;
+    document.getElementById('install2').href = PLAY;
+
+    if (!/^\d{6}$/.test(room)) {
+      document.getElementById('invalid').classList.remove('hidden');
+      return;
+    }
+    document.getElementById('invite').classList.remove('hidden');
+    document.getElementById('code').textContent = room;
+    document.title = '将棋対戦への招待(部屋番号 ' + room + ')';
+
+    // Android の Chrome などでは intent: リンクでアプリを開く。入っていなければ Google Play を開く
+    document.getElementById('open').href =
+      'intent://join?room=' + room + '#Intent;scheme=shogiapp;package=' + PACKAGE +
+      ';S.browser_fallback_url=' + encodeURIComponent(PLAY) + ';end';
+
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      document.getElementById('ios-note').hidden = false;
+    }
+
+    document.getElementById('copy').addEventListener('click', function () {
+      var button = this;
+      function done() { button.textContent = 'コピーしました'; }
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(room).then(done, function () { prompt('部屋番号', room); });
+      } else {
+        prompt('部屋番号', room);
+      }
+    });
+  })();
+</script>
+</body>
+</html>

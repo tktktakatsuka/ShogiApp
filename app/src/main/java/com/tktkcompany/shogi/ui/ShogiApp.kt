@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
@@ -37,6 +38,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.booleanResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tktkcompany.shogi.R
 import com.tktkcompany.shogi.UiText
+import com.tktkcompany.shogi.game.CpuLevel
 import com.tktkcompany.shogi.game.KifuStyle
 import com.tktkcompany.shogi.game.PieceType
 import com.tktkcompany.shogi.ui.components.AdBanner
@@ -85,6 +88,9 @@ private fun AppContent(viewModel: ShogiViewModel) {
                 onlineProblem = viewModel.onlineProblem,
                 soundEnabled = viewModel.soundEnabled,
                 onToggleSound = viewModel::toggleSound,
+                cpuLevels = viewModel.cpuLevels,
+                cpuLevel = viewModel.cpuLevel,
+                onStartCpu = viewModel::startCpuGame,
                 onStart = viewModel::startLocalGame,
                 onOnline = viewModel::openLobby,
             )
@@ -109,18 +115,79 @@ private fun HomeScreen(
     onlineProblem: UiText?,
     soundEnabled: Boolean,
     onToggleSound: () -> Unit,
+    cpuLevels: List<CpuLevel>,
+    cpuLevel: CpuLevel,
+    onStartCpu: (CpuLevel) -> Unit,
     onStart: (GameMode) -> Unit,
     onOnline: () -> Unit,
 ) {
+    var choosingLevel by rememberSaveable { mutableStateOf(false) }
+    // 強さを選べるとき(エンジンが入っているとき)だけ、強さの選択画面を出す
+    val startCpu: (GameMode) -> Unit = { mode ->
+        when {
+            mode != GameMode.VS_CPU -> onStart(mode)
+            cpuLevels.size > 1 -> choosingLevel = true
+            else -> onStartCpu(cpuLevels.first())
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .washiBackground()
             .safeDrawingPadding(),
     ) {
-        HomeMenu(onlineAvailable, onlineProblem, soundEnabled, onToggleSound, onStart, onOnline, Modifier.weight(1f))
+        HomeMenu(onlineAvailable, onlineProblem, soundEnabled, onToggleSound, startCpu, onOnline, Modifier.weight(1f))
         AdBanner()
     }
+    if (choosingLevel) {
+        CpuLevelDialog(
+            levels = cpuLevels,
+            current = cpuLevel,
+            onChoose = { level ->
+                choosingLevel = false
+                onStartCpu(level)
+            },
+            onDismiss = { choosingLevel = false },
+        )
+    }
+}
+
+/** CPU の強さを選ぶ画面。前回選んだ強さを朱色で示す。 */
+@Composable
+private fun CpuLevelDialog(
+    levels: List<CpuLevel>,
+    current: CpuLevel,
+    onChoose: (CpuLevel) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.cpu_level_title), fontFamily = Mincho, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (level in levels) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        val label = stringResource(level.label)
+                        if (level == current) {
+                            ShuButton(label, Modifier.fillMaxWidth()) { onChoose(level) }
+                        } else {
+                            SumiButton(label, Modifier.fillMaxWidth()) { onChoose(level) }
+                        }
+                        Text(
+                            stringResource(level.description),
+                            fontFamily = Mincho,
+                            fontSize = 12.sp,
+                            color = Sumi.copy(alpha = 0.7f),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel), color = Sumi) }
+        },
+    )
 }
 
 @Composable
@@ -254,6 +321,7 @@ private fun LobbyScreen(
                     textAlign = TextAlign.Center,
                     color = Sumi,
                 )
+                InviteButtons(lobby.waitingCode)
                 CircularProgressIndicator(color = Shu)
                 SumiButton(stringResource(R.string.cancel), onClick = onCancelWaiting)
             }
@@ -289,6 +357,21 @@ private fun LobbyScreen(
         Spacer(Modifier.size(8.dp))
         TextButton(onClick = onBack) {
             Text(stringResource(R.string.back_to_menu), color = Sumi, fontFamily = Mincho)
+        }
+    }
+}
+
+/** 部屋番号と招待リンクを LINE などで送るボタン。 */
+@Composable
+private fun InviteButtons(code: String) {
+    val context = LocalContext.current
+    val message = stringResource(R.string.invite_message, code, Invite.link(code))
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        ShuButton(stringResource(R.string.invite_line), Modifier.fillMaxWidth()) {
+            Invite.sendWithLine(context, message)
+        }
+        SumiButton(stringResource(R.string.invite_other), Modifier.fillMaxWidth()) {
+            Invite.sendWithChooser(context, message)
         }
     }
 }

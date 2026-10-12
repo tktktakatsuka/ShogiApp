@@ -130,4 +130,23 @@
     <string name="online_error_detail">通信エラー: %1$s %2$s</string>
     <string name="online_not_initialized">Firebase が初期化されていません。google-services.json が app フォルダ直下に「google-services.json」という名前で置かれているか確認し、Gradle Sync してからビルドし直してください</string>
     <string name="online_no_database">Realtime Database の接続先がわかりません。Firebase で Realtime Database を作成した後にgoogle-services.json をダウンロードし直して置き換えてください(%1$s)</string>
+    <!-- CPUの強さ -->
+    <string name="cpu_level_title">CPUの強さを選ぶ</string>
+    <string name="cpu_level_INTRO">入門</string>
+    <string name="cpu_level_NOVICE">初級</string>
+    <string name="cpu_level_INTERMEDIATE">中級</string>
+    <string name="cpu_level_ADVANCED">上級</string>
+    <string name="cpu_level_EXPERT">有段</string>
+    <string name="cpu_level_INTRO_desc">ルールを覚えたばかりの方に</string>
+    <string name="cpu_level_NOVICE_desc">駒の動きがわかる方に</string>
+    <string name="cpu_level_INTERMEDIATE_desc">ふだん将棋を指す方に</string>
+    <string name="cpu_level_ADVANCED_desc">級位者の上位・初段を目指す方に</string>
+    <string name="cpu_level_EXPERT_desc">有段者の方に</string>
+    <string name="cpu_with_level">CPU(%1$s)</string>
+
+    <!-- 招待 -->
+    <string name="invite_line">LINEで招待</string>
+    <string name="invite_other">ほかのアプリで招待</string>
+    <string name="invite_message">将棋で対局しよう！部屋番号は %1$s です。\nこのリンクから参加できます：\n%2$s</string>
+    <string name="invite_busy">オンライン対局中は、ほかの部屋に参加できません</string>
 </resources>
