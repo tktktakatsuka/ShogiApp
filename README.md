@@ -98,18 +98,25 @@ GPLv3 に従ってエンジンのソースコードを入手できるように�
 - 投了
 - 感想戦: 終局後に棋譜をたどる・別の手(変化)を試す。オンラインでは相手と盤面を共有しながらチャット(定型文ボタン付き)
 - 感想戦でAIの最善手を表示(盤上の矢印・形勢・読み筋。要設定)
+- 日本語と英語に対応(端末の言語で切り替わる。日本語以外では英語で表示し、棋譜は ▲P-7f のような英語式になる。駒は漢字のまま)
+
+### 言語を追加するには
+
+1. `app/src/main/res/values/strings.xml`(英語)をコピーして `values-<言語コード>/strings.xml` を作り、翻訳する
+2. `app/src/main/res/xml/locales_config.xml` にその言語を追加する
 
 ## 構成
 
 ```
 app/src/main/java/com/tktkcompany/shogi/
 ├── MainActivity.kt          画面の起動
+├── UiText.kt                画面に出す文言(文字列リソースの ID と埋め込む値)
 ├── game/                    将棋のルール(Android に依存しない純粋な Kotlin)
 │   ├── Piece.kt             駒・手番・マス・指し手
 │   ├── Position.kt          局面、合法手生成、王手・詰み判定、SFEN 入出力
 │   ├── Game.kt              対局の進行、待った、終局判定
 │   ├── Usi.kt               指し手の文字列表記(USI 形式)
-│   ├── Kifu.kt              日本式の棋譜表記(▲７六歩 など)
+│   ├── Kifu.kt              棋譜表記(日本式の ▲７六歩、英語式の ▲P-7f)
 │   ├── Review.kt            感想戦(本譜をたどる・変化を試す)
 │   ├── Analysis.kt          検討エンジンの読み(評価値・読み筋)
 │   └── Cpu.kt               CPU の思考
@@ -124,6 +131,7 @@ app/src/main/java/com/tktkcompany/shogi/
     ├── ShogiApp.kt          ホーム画面・オンライン対戦のロビー画面
     ├── GameScreen.kt        対局画面(盤・駒台・ボタン・ダイアログ・王手の演出)
     ├── ReviewPanel.kt       感想戦の操作ボタン・棋譜一覧・チャット欄
+    ├── Strings.kt           プレイヤー名・終局結果・形勢を端末の言語の文字列にする
     ├── SoundPlayer.kt       効果音(res/raw/koma.wav)
     ├── components/          盤・駒・駒台・和紙の背景・ボタン・バナー広告の部品
     └── theme/Theme.kt       和の配色と明朝体

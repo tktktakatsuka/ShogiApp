@@ -1,9 +1,9 @@
 package com.tktkcompany.shogi.game
 
 /** 手番。先手(SENTE)は盤の下側、後手(GOTE)は上側。 */
-enum class Player(val label: String) {
-    SENTE("先手"),
-    GOTE("後手");
+enum class Player {
+    SENTE,
+    GOTE;
 
     val opponent: Player get() = if (this == SENTE) GOTE else SENTE
 

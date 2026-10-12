@@ -7,14 +7,7 @@ enum class EndReason {
 }
 
 /** 終局結果。winner が null なら引き分け。 */
-data class GameResult(val winner: Player?, val reason: EndReason) {
-    val message: String
-        get() = when (reason) {
-            EndReason.CHECKMATE -> "詰み。${winner?.label}の勝ち"
-            EndReason.RESIGN -> "${winner?.opponent?.label}の投了。${winner?.label}の勝ち"
-            EndReason.SENNICHITE -> "千日手(引き分け)"
-        }
-}
+data class GameResult(val winner: Player?, val reason: EndReason)
 
 /** 対局全体の進行(局面履歴・待った・終局判定)を管理する。 */
 class Game(initial: Position = Position.initial()) {
@@ -27,12 +20,11 @@ class Game(initial: Position = Position.initial()) {
     val lastMove: Move? get() = moveList.lastOrNull()
 
     /** 直前の手の棋譜表記(例: "▲７六歩")。 */
-    val lastMoveNotation: String?
-        get() {
-            val move = lastMove ?: return null
-            val before = positions[positions.lastIndex - 1]
-            return Kifu.format(before, move, moveList.getOrNull(moveList.lastIndex - 1))
-        }
+    fun lastMoveNotation(style: KifuStyle = KifuStyle.JAPANESE): String? {
+        val move = lastMove ?: return null
+        val before = positions[positions.lastIndex - 1]
+        return Kifu.format(before, move, moveList.getOrNull(moveList.lastIndex - 1), style)
+    }
 
     var result: GameResult? = null
         private set

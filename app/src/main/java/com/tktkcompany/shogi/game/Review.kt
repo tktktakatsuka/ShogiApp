@@ -23,12 +23,16 @@ data class ReviewView(
  * 終わった対局の感想戦。本譜をたどったり、別の手(変化)を試したりする。
  * 状態は [ReviewState] として外に持たせるので、オンラインでも同じ状態を共有できる。
  */
-class Review(val mainMoves: List<Move>, initial: Position = Position.initial()) {
+class Review(
+    val mainMoves: List<Move>,
+    initial: Position = Position.initial(),
+    private val style: KifuStyle = KifuStyle.JAPANESE,
+) {
     private val mainPositions: List<Position> = mainMoves.runningFold(initial) { pos, move -> pos.apply(move) }
 
     /** 本譜の各手の棋譜表記。 */
     val mainNotations: List<String> = mainMoves.mapIndexed { i, move ->
-        Kifu.format(mainPositions[i], move, mainMoves.getOrNull(i - 1))
+        Kifu.format(mainPositions[i], move, mainMoves.getOrNull(i - 1), style)
     }
 
     val size: Int get() = mainMoves.size
@@ -78,7 +82,7 @@ class Review(val mainMoves: List<Move>, initial: Position = Position.initial()) 
         var previous = mainMoves.getOrNull(s.index - 1)
         val notations = mutableListOf<String>()
         for (move in s.variation) {
-            notations += Kifu.format(pos, move, previous)
+            notations += Kifu.format(pos, move, previous, style)
             pos = pos.apply(move)
             previous = move
         }

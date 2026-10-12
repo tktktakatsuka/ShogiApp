@@ -1,3 +1,133 @@
 <resources>
-    <string name="app_name">将棋</string>
+    <string name="app_name">Shogi</string>
+
+    <!-- Players -->
+    <string name="player_sente">Sente</string>
+    <string name="player_gote">Gote</string>
+    <string name="you">You</string>
+    <string name="cpu">CPU</string>
+    <string name="opponent">Opponent</string>
+
+    <!-- Board coordinates (files left to right, ranks top to bottom, as seen by Sente) -->
+    <string name="board_files">987654321</string>
+    <string name="board_ranks">abcdefghi</string>
+
+    <!-- Home -->
+    <string name="mode_vs_cpu">Play vs CPU</string>
+    <string name="mode_vs_human">Two players</string>
+    <string name="mode_online">Online match</string>
+    <string name="online_needs_firebase">Online play requires the Firebase configuration (google-services.json)</string>
+    <string name="sound_and_vibration">Sound &amp; vibration</string>
+
+    <!-- Lobby -->
+    <string name="room_code">Room code</string>
+    <string name="room_code_hint">Room code (6 digits)</string>
+    <string name="lobby_waiting">Share this code with your opponent.\nThe game starts when they join (you play Sente).</string>
+    <string name="cancel">Cancel</string>
+    <string name="create_room">Create a room (Sente)</string>
+    <string name="join_room">Join a room (Gote)</string>
+    <string name="back_to_menu">Back to menu</string>
+
+    <!-- Game -->
+    <string name="room_title">Room %1$s</string>
+    <string name="back_menu">‹ Menu</string>
+    <string name="back_exit_review">‹ Exit review</string>
+    <string name="sound_on">Sound on</string>
+    <string name="sound_off">Sound off</string>
+    <string name="status_game_over">Game over — %1$s</string>
+    <string name="status_cpu_thinking">CPU is thinking…</string>
+    <string name="status_turn_player">Move %1$d · %2$s to move</string>
+    <string name="status_turn_you">Move %1$d · Your turn</string>
+    <string name="status_turn_other">Move %1$d · %2$s\'s turn</string>
+    <string name="last_move">Last move: %1$s</string>
+    <string name="game_start">Game start</string>
+    <string name="check">Check</string>
+    <string name="partner_started_review">Your opponent started the review</string>
+    <string name="review">Review</string>
+    <string name="review_with_chat">Review (with chat)</string>
+    <string name="undo">Undo</string>
+    <string name="resign">Resign</string>
+    <string name="new_game">New game</string>
+
+    <!-- Results -->
+    <string name="result_checkmate">Checkmate. %1$s wins</string>
+    <string name="result_resign">%1$s resigned. %2$s wins</string>
+    <string name="result_sennichite">Repetition (draw)</string>
+    <string name="result_summary">%2$s\nMoves: %1$d</string>
+    <string name="result_draw">Draw</string>
+    <string name="result_player_wins">%1$s wins</string>
+    <string name="result_you_win">You win!</string>
+    <string name="result_you_lose">You lose</string>
+
+    <!-- Dialogs -->
+    <string name="promote_title">Promote?</string>
+    <string name="promote_yes">Promote</string>
+    <string name="promote_no">Don\'t promote</string>
+    <string name="to_menu">Menu</string>
+    <string name="play_again">Play again</string>
+    <string name="close">Close</string>
+    <string name="resign_title">Resign this game?</string>
+    <string name="resign_confirm">Resign</string>
+    <string name="keep_playing">Keep playing</string>
+    <string name="leave_title">Leave the game?</string>
+    <string name="leave_text">Leaving during a game counts as resigning.</string>
+    <string name="leave_confirm">Leave</string>
+    <string name="error_title">Error</string>
+    <string name="ok">OK</string>
+
+    <!-- Review -->
+    <string name="review_title">Review %1$d / %2$d</string>
+    <string name="review_title_variation">Review %1$d / %2$d (variation: %3$d)</string>
+    <string name="variation_line">Variation: %1$s</string>
+    <string name="back_to_main_line">Back to main line</string>
+    <string name="ai_thinking">Thinking…</string>
+    <string name="ai_line">Line: %1$s</string>
+    <string name="ai_no_moves">No legal moves (checkmate)</string>
+    <string name="ai_failed">Couldn\'t start the AI</string>
+    <string name="eval_even">Even</string>
+    <string name="eval_advantage">%1$s is better</string>
+    <string name="eval_clear_advantage">%1$s is much better</string>
+    <string name="eval_winning">%1$s is winning</string>
+    <string name="eval_mate_in">%1$s wins (mate in %2$d)</string>
+    <string name="eval_mate">%1$s wins (mate)</string>
+    <string name="tab_chat">Chat</string>
+    <string name="tab_kifu">Moves</string>
+    <string name="start_position">Start position</string>
+    <string name="chat_empty">Move the pieces and\ntalk it over with your opponent</string>
+    <string name="chat_placeholder">Message</string>
+    <string name="send">Send</string>
+    <string-array name="quick_phrases">
+        <item>Thank you for the game</item>
+        <item>I resign</item>
+        <item>Was this the mistake?</item>
+        <item>I didn\'t see that move</item>
+        <item>I see!</item>
+        <item>Another game?</item>
+    </string-array>
+
+    <!-- Errors -->
+    <string name="error_create_room">Couldn\'t create the room</string>
+    <string name="error_room_code_format">The room code is a 6-digit number</string>
+    <string name="error_join_room">Couldn\'t join the room</string>
+    <string name="error_network">A network error occurred</string>
+    <string name="error_invalid_move_received">Received an invalid move at move %1$d, so it was ignored</string>
+    <string name="error_share_review">Couldn\'t share the review position</string>
+    <string name="error_send_chat">Couldn\'t send the message</string>
+    <string name="error_send_resign">Failed to send your resignation</string>
+    <string name="error_send_move">Failed to send your move. Check your connection</string>
+
+    <!-- Online errors -->
+    <string name="online_sign_in_failed">Sign-in failed</string>
+    <string name="online_sign_in_failed_detail">Sign-in failed (%1$s)</string>
+    <string name="online_create_room_retry">Couldn\'t create the room. Please try again</string>
+    <string name="online_room_not_found">Room not found</string>
+    <string name="online_own_room">You can\'t join a room you created</string>
+    <string name="online_room_unavailable">This room is already in a game or has ended</string>
+    <string name="online_timeout">No response from the server. Check your connection and that the Realtime Database has been created</string>
+    <string name="online_no_internet">Can\'t connect to the internet</string>
+    <string name="online_anonymous_disabled">Anonymous sign-in is not enabled. Enable \"Anonymous\" under Authentication > Sign-in method in Firebase</string>
+    <string name="online_permission_denied">Access to the database was denied. Paste the contents of database.rules.json into the Realtime Database rules and publish them</string>
+    <string name="online_error_detail">Network error: %1$s %2$s</string>
+    <string name="online_not_initialized">Firebase is not initialized. Check that google-services.json is placed directly in the app folder under the name \"google-services.json\", then run Gradle Sync and rebuild</string>
+    <string name="online_no_database">The Realtime Database URL is unknown. After creating a Realtime Database in Firebase, download google-services.json again and replace the old one (%1$s)</string>
 </resources>

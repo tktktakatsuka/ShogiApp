@@ -1,5 +1,7 @@
 package com.tktkcompany.shogi.online
 
+import androidx.annotation.StringRes
+import com.tktkcompany.shogi.UiText
 import kotlinx.coroutines.flow.Flow
 
 /** オンライン対戦のサーバーとのやりとり。 */
@@ -28,7 +30,10 @@ interface OnlineRepository {
     suspend fun sendChat(code: String, uid: String, text: String)
 }
 
-class OnlineException(message: String) : Exception(message)
+/** オンライン対戦の失敗。[text] は画面に出す説明。 */
+class OnlineException(val text: UiText) : Exception() {
+    constructor(@StringRes id: Int) : this(UiText(id))
+}
 
 /** オンライン対戦の準備状況。repository が null なら problem に使えない理由が入る。 */
-data class OnlineSetup(val repository: OnlineRepository?, val problem: String?)
+data class OnlineSetup(val repository: OnlineRepository?, val problem: UiText?)

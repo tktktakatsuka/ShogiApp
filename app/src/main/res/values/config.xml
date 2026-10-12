@@ -1,0 +1,4 @@
+<resources>
+    <!-- 棋譜を英語式(例: P-7f)で表記するか。日本語では values-ja で false にしている -->
+    <bool name="western_kifu">true</bool>
+</resources>

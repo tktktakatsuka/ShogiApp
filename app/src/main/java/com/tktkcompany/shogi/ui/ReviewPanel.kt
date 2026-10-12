@@ -33,12 +33,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tktkcompany.shogi.R
 import com.tktkcompany.shogi.ui.components.ShuButton
 import com.tktkcompany.shogi.ui.components.SumiButton
 import com.tktkcompany.shogi.ui.theme.AiHint
@@ -66,7 +69,7 @@ fun ReviewControls(review: ReviewUi, ai: AiUi?, viewModel: ShogiViewModel) {
         if (review.isVariation) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    "変化　" + review.variationNotations.joinToString(" "),
+                    stringResource(R.string.variation_line, review.variationNotations.joinToString(" ")),
                     fontFamily = Mincho,
                     fontSize = 13.sp,
                     color = Shu,
@@ -74,7 +77,12 @@ fun ReviewControls(review: ReviewUi, ai: AiUi?, viewModel: ShogiViewModel) {
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = viewModel::reviewBackToMainLine) {
-                    Text("本譜に戻る", fontFamily = Mincho, color = Sumi, fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.back_to_main_line),
+                        fontFamily = Mincho,
+                        color = Sumi,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
         }
@@ -115,9 +123,9 @@ private fun AiResult(ai: AiUi) {
             val best = ai.line.firstOrNull()
             Text(
                 when {
-                    ai.note != null -> ai.note
-                    best == null -> "考えています…"
-                    else -> "$best　${ai.score}" + if (ai.thinking) " …" else ""
+                    ai.note != null -> ai.note.resolve()
+                    best == null -> stringResource(R.string.ai_thinking)
+                    else -> "$best　${ai.evaluation?.describe().orEmpty()}" + if (ai.thinking) " …" else ""
                 },
                 fontFamily = Mincho,
                 fontWeight = FontWeight.Bold,
@@ -128,7 +136,7 @@ private fun AiResult(ai: AiUi) {
             )
             if (ai.line.size > 1) {
                 Text(
-                    "読み筋　" + ai.line.drop(1).joinToString(" "),
+                    stringResource(R.string.ai_line, ai.line.drop(1).joinToString(" ")),
                     fontFamily = Mincho,
                     fontSize = 12.sp,
                     color = Sumi.copy(alpha = 0.75f),
@@ -157,8 +165,8 @@ fun ReviewBottomPanel(state: UiState, viewModel: ShogiViewModel, modifier: Modif
     ) {
         if (chatEnabled) {
             Row {
-                PanelTab("チャット", selected = showChat) { showChat = true }
-                PanelTab("棋譜", selected = !showChat) { showChat = false }
+                PanelTab(stringResource(R.string.tab_chat), selected = showChat) { showChat = true }
+                PanelTab(stringResource(R.string.tab_kifu), selected = !showChat) { showChat = false }
             }
         }
         if (chatEnabled && showChat) {
@@ -196,9 +204,10 @@ private fun KifuList(review: ReviewUi, onJump: (Int) -> Unit, modifier: Modifier
     LaunchedEffect(review.index) {
         listState.animateScrollToItem((review.index - 2).coerceAtLeast(0))
     }
+    val startLabel = stringResource(R.string.start_position)
     LazyColumn(state = listState, modifier = modifier.fillMaxWidth()) {
         item {
-            KifuRow(label = "開始局面", current = review.index == 0 && !review.isVariation) { onJump(0) }
+            KifuRow(label = startLabel, current = review.index == 0 && !review.isVariation) { onJump(0) }
         }
         itemsIndexed(review.mainNotations) { i, notation ->
             KifuRow(
@@ -225,15 +234,6 @@ private fun KifuRow(label: String, current: Boolean, onClick: () -> Unit) {
     )
 }
 
-private val QUICK_PHRASES = listOf(
-    "ありがとうございました",
-    "参りました",
-    "ここが悪かった？",
-    "この手は気づかなかった",
-    "なるほど！",
-    "もう一局どう？",
-)
-
 /** チャット欄(定型文ボタン付き)。 */
 @Composable
 private fun ChatPanel(messages: List<ChatLine>, onSend: (String) -> Unit, modifier: Modifier = Modifier) {
@@ -246,7 +246,7 @@ private fun ChatPanel(messages: List<ChatLine>, onSend: (String) -> Unit, modifi
         if (messages.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Text(
-                    "盤面を動かしながら\n相手と話してみましょう",
+                    stringResource(R.string.chat_empty),
                     fontFamily = Mincho,
                     color = Sumi.copy(alpha = 0.5f),
                     textAlign = TextAlign.Center,
@@ -261,8 +261,9 @@ private fun ChatPanel(messages: List<ChatLine>, onSend: (String) -> Unit, modifi
                 items(messages, key = { it.id }) { ChatBubble(it) }
             }
         }
+        val quickPhrases = stringArrayResource(R.array.quick_phrases)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
-            items(QUICK_PHRASES) { phrase ->
+            items(quickPhrases) { phrase ->
                 Text(
                     phrase,
                     fontFamily = Mincho,
@@ -283,14 +284,14 @@ private fun ChatPanel(messages: List<ChatLine>, onSend: (String) -> Unit, modifi
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it.take(200) },
-                placeholder = { Text("メッセージ", fontFamily = Mincho) },
+                placeholder = { Text(stringResource(R.string.chat_placeholder), fontFamily = Mincho) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { send() }),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Shu, unfocusedBorderColor = Kincha),
                 modifier = Modifier.weight(1f).height(52.dp),
             )
-            ShuButton("送信", enabled = input.isNotBlank(), onClick = send)
+            ShuButton(stringResource(R.string.send), enabled = input.isNotBlank(), onClick = send)
         }
     }
 }
@@ -303,7 +304,7 @@ private fun ChatBubble(line: ChatLine) {
     ) {
         Column(horizontalAlignment = if (line.mine) Alignment.End else Alignment.Start) {
             Text(
-                if (line.mine) "あなた" else "相手",
+                stringResource(if (line.mine) R.string.you else R.string.opponent),
                 fontFamily = Mincho,
                 fontSize = 11.sp,
                 color = Sumi.copy(alpha = 0.6f),

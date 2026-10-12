@@ -1,0 +1,133 @@
+<resources>
+    <string name="app_name">将棋</string>
+
+    <!-- プレイヤー -->
+    <string name="player_sente">先手</string>
+    <string name="player_gote">後手</string>
+    <string name="you">あなた</string>
+    <string name="cpu">CPU</string>
+    <string name="opponent">相手</string>
+
+    <!-- 盤の筋(左から)と段(上から)。先手から見た並び -->
+    <string name="board_files">９８７６５４３２１</string>
+    <string name="board_ranks">一二三四五六七八九</string>
+
+    <!-- ホーム -->
+    <string name="mode_vs_cpu">CPUと対局</string>
+    <string name="mode_vs_human">2人で対局</string>
+    <string name="mode_online">オンライン対戦</string>
+    <string name="online_needs_firebase">オンライン対戦を使うには Firebase の設定(google-services.json)が必要です</string>
+    <string name="sound_and_vibration">効果音・振動</string>
+
+    <!-- ロビー -->
+    <string name="room_code">部屋番号</string>
+    <string name="room_code_hint">部屋番号(6桁)</string>
+    <string name="lobby_waiting">この番号を相手に伝えてください。\n相手が参加すると対局が始まります(あなたは先手)。</string>
+    <string name="cancel">やめる</string>
+    <string name="create_room">部屋を作る(先手)</string>
+    <string name="join_room">部屋に参加する(後手)</string>
+    <string name="back_to_menu">メニューに戻る</string>
+
+    <!-- 対局 -->
+    <string name="room_title">部屋 %1$s</string>
+    <string name="back_menu">‹ メニュー</string>
+    <string name="back_exit_review">‹ 感想戦を終える</string>
+    <string name="sound_on">音 あり</string>
+    <string name="sound_off">音 なし</string>
+    <string name="status_game_over">対局終了 ― %1$s</string>
+    <string name="status_cpu_thinking">CPUが考えています…</string>
+    <string name="status_turn_player">%1$d手目　%2$sの番</string>
+    <string name="status_turn_you">%1$d手目　あなたの番です</string>
+    <string name="status_turn_other">%1$d手目　%2$sの番です</string>
+    <string name="last_move">直前の手　%1$s</string>
+    <string name="game_start">対局開始</string>
+    <string name="check">王手</string>
+    <string name="partner_started_review">相手が感想戦を始めました</string>
+    <string name="review">感想戦</string>
+    <string name="review_with_chat">感想戦(チャットで話しながら)</string>
+    <string name="undo">待った</string>
+    <string name="resign">投了</string>
+    <string name="new_game">新規対局</string>
+
+    <!-- 終局 -->
+    <string name="result_checkmate">詰み。%1$sの勝ち</string>
+    <string name="result_resign">%1$sの投了。%2$sの勝ち</string>
+    <string name="result_sennichite">千日手(引き分け)</string>
+    <string name="result_summary">%1$d手で%2$s</string>
+    <string name="result_draw">引き分け</string>
+    <string name="result_player_wins">%1$sの勝ち</string>
+    <string name="result_you_win">勝ち！</string>
+    <string name="result_you_lose">負け</string>
+
+    <!-- ダイアログ -->
+    <string name="promote_title">成りますか？</string>
+    <string name="promote_yes">成る</string>
+    <string name="promote_no">成らない</string>
+    <string name="to_menu">メニューへ</string>
+    <string name="play_again">もう一局</string>
+    <string name="close">閉じる</string>
+    <string name="resign_title">投了しますか？</string>
+    <string name="resign_confirm">投了する</string>
+    <string name="keep_playing">続ける</string>
+    <string name="leave_title">対局をやめますか？</string>
+    <string name="leave_text">対局中に退出すると投了になります。</string>
+    <string name="leave_confirm">退出する</string>
+    <string name="error_title">エラー</string>
+    <string name="ok">OK</string>
+
+    <!-- 感想戦 -->
+    <string name="review_title">感想戦　%1$d / %2$d手</string>
+    <string name="review_title_variation">感想戦　%1$d / %2$d手(変化 %3$d手)</string>
+    <string name="variation_line">変化　%1$s</string>
+    <string name="back_to_main_line">本譜に戻る</string>
+    <string name="ai_thinking">考えています…</string>
+    <string name="ai_line">読み筋　%1$s</string>
+    <string name="ai_no_moves">指せる手がありません(詰み)</string>
+    <string name="ai_failed">AIを起動できませんでした</string>
+    <string name="eval_even">互角</string>
+    <string name="eval_advantage">%1$s有利</string>
+    <string name="eval_clear_advantage">%1$s優勢</string>
+    <string name="eval_winning">%1$s勝勢</string>
+    <string name="eval_mate_in">%1$sの勝ち(%2$d手詰)</string>
+    <string name="eval_mate">%1$sの勝ち(詰み)</string>
+    <string name="tab_chat">チャット</string>
+    <string name="tab_kifu">棋譜</string>
+    <string name="start_position">開始局面</string>
+    <string name="chat_empty">盤面を動かしながら\n相手と話してみましょう</string>
+    <string name="chat_placeholder">メッセージ</string>
+    <string name="send">送信</string>
+    <string-array name="quick_phrases">
+        <item>ありがとうございました</item>
+        <item>参りました</item>
+        <item>ここが悪かった？</item>
+        <item>この手は気づかなかった</item>
+        <item>なるほど！</item>
+        <item>もう一局どう？</item>
+    </string-array>
+
+    <!-- エラー -->
+    <string name="error_create_room">部屋を作れませんでした</string>
+    <string name="error_room_code_format">部屋番号は6桁の数字です</string>
+    <string name="error_join_room">部屋に参加できませんでした</string>
+    <string name="error_network">通信エラーが発生しました</string>
+    <string name="error_invalid_move_received">%1$d手目に不正な手を受信したため、その手を無視しました</string>
+    <string name="error_share_review">感想戦の局面を共有できませんでした</string>
+    <string name="error_send_chat">メッセージを送れませんでした</string>
+    <string name="error_send_resign">投了の送信に失敗しました</string>
+    <string name="error_send_move">指し手の送信に失敗しました。通信状態を確認してください</string>
+
+    <!-- オンライン対戦のエラー -->
+    <string name="online_sign_in_failed">ログインに失敗しました</string>
+    <string name="online_sign_in_failed_detail">ログインに失敗しました(%1$s)</string>
+    <string name="online_create_room_retry">部屋を作れませんでした。もう一度お試しください</string>
+    <string name="online_room_not_found">部屋が見つかりません</string>
+    <string name="online_own_room">自分が作った部屋には参加できません</string>
+    <string name="online_room_unavailable">この部屋はすでに対局中か終了しています</string>
+    <string name="online_timeout">サーバーから応答がありません。通信状態と、Realtime Database が作成済みかを確認してください</string>
+    <string name="online_no_internet">インターネットに接続できません</string>
+    <string name="online_anonymous_disabled">匿名ログインが有効になっていません。Firebase の Authentication > ログイン方法 で「匿名」を有効にしてください</string>
+    <string name="online_permission_denied">データベースへのアクセスが拒否されました。Realtime Database のルールに database.rules.json の内容を貼り付けて公開してください</string>
+    <string name="online_error_detail">通信エラー: %1$s %2$s</string>
+    <string name="online_not_initialized">Firebase が初期化されていません。google-services.json が app フォルダ直下に「google-services.json」という名前で置かれているか確認し、Gradle Sync してからビルドし直してください</string>
+    <string name="online_no_database">Realtime Database の接続先がわかりません。Firebase で Realtime Database を作成した後にgoogle-services.json をダウンロードし直して置き換えてください(%1$s)</string>
+</resources>

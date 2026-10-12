@@ -2,6 +2,18 @@ package com.tktkcompany.shogi.game
 
 import kotlin.math.abs
 
+/** 形勢の判断(画面には "+350 先手有利"、"後手の勝ち(7手詰)" のように表示する)。 */
+sealed interface Evaluation {
+    /** [cp] は先手から見た評価値、[leader] は指しやすい側。 */
+    data class Score(val cp: Int, val leader: Player, val level: Level) : Evaluation
+
+    /** 詰みの読み切り。[moves] は詰みまでの手数(不明なら null)。 */
+    data class Mate(val winner: Player, val moves: Int?) : Evaluation
+
+    /** 互角・有利・優勢・勝勢。 */
+    enum class Level { EVEN, ADVANTAGE, CLEAR_ADVANTAGE, WINNING }
+}
+
 /**
  * 検討エンジンが読んだ結果。評価値と詰みは「その局面の手番側」から見た値。
  * [pv] は読み筋(先頭が最善手)。
@@ -18,22 +30,18 @@ data class Analysis(
 
     val bestMove: Move? get() = pv.firstOrNull()
 
-    /** 先手から見た形勢の説明(例: "+350 先手有利"、"後手の勝ち(7手詰)")。 */
-    fun describe(turn: Player): String {
-        if (mate != null) {
-            val winner = if (mate.win) turn else turn.opponent
-            return "${winner.label}の勝ち" + (mate.moves?.let { "(${it}手詰)" } ?: "(詰み)")
-        }
-        val cp = scoreCp ?: return ""
+    /** 形勢。[turn] はこの局面の手番。評価値も詰みもなければ null。 */
+    fun evaluate(turn: Player): Evaluation? {
+        if (mate != null) return Evaluation.Mate(if (mate.win) turn else turn.opponent, mate.moves)
+        val cp = scoreCp ?: return null
         val forSente = if (turn == Player.SENTE) cp else -cp
-        val side = if (forSente >= 0) Player.SENTE else Player.GOTE
-        val label = when (abs(forSente)) {
-            in 0 until 200 -> "互角"
-            in 200 until 800 -> "${side.label}有利"
-            in 800 until 2000 -> "${side.label}優勢"
-            else -> "${side.label}勝勢"
+        val level = when (abs(forSente)) {
+            in 0 until 200 -> Evaluation.Level.EVEN
+            in 200 until 800 -> Evaluation.Level.ADVANTAGE
+            in 800 until 2000 -> Evaluation.Level.CLEAR_ADVANTAGE
+            else -> Evaluation.Level.WINNING
         }
-        return "${if (forSente > 0) "+" else ""}$forSente $label"
+        return Evaluation.Score(forSente, if (forSente >= 0) Player.SENTE else Player.GOTE, level)
     }
 
     companion object {

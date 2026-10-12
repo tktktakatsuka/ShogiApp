@@ -31,12 +31,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.tktkcompany.shogi.R
 import com.tktkcompany.shogi.game.Move
 import com.tktkcompany.shogi.game.Player
 import com.tktkcompany.shogi.game.Position
@@ -52,9 +54,6 @@ import com.tktkcompany.shogi.ui.theme.Mincho
 import com.tktkcompany.shogi.ui.theme.SelectedSquare
 import com.tktkcompany.shogi.ui.theme.TargetDot
 import kotlin.random.Random
-
-private const val FILE_LABELS = "９８７６５４３２１"
-private const val RANK_LABELS = "一二三四五六七八九"
 
 /** 木目の筋 (y 位置・傾き・太さ・濃さ。位置は 0〜1 の比率)。 */
 private class Grain(val y: Float, val slope: Float, val width: Float, val alpha: Float)
@@ -129,9 +128,11 @@ fun BoardView(
         Box(Modifier.height(pad * 2 + label + gridSize))
 
         // 筋(上)と段(右)の数字
+        val fileLabels = stringResource(R.string.board_files)
+        val rankLabels = stringResource(R.string.board_ranks)
         for (i in 0..8) {
-            val fileText = FILE_LABELS[if (flipped) 8 - i else i].toString()
-            val rankText = RANK_LABELS[if (flipped) 8 - i else i].toString()
+            val fileText = fileLabels[if (flipped) 8 - i else i].toString()
+            val rankText = rankLabels[if (flipped) 8 - i else i].toString()
             BoardLabel(fileText, Modifier.offset(x = pad + cell * i, y = pad).size(cell, label))
             BoardLabel(
                 rankText,

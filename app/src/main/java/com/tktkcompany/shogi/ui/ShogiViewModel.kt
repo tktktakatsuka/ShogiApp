@@ -1,17 +1,22 @@
 package com.tktkcompany.shogi.ui
 
 import android.app.Application
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.tktkcompany.shogi.R
+import com.tktkcompany.shogi.UiText
 import com.tktkcompany.shogi.engine.UsiEngine
 import com.tktkcompany.shogi.game.Analysis
 import com.tktkcompany.shogi.game.Cpu
+import com.tktkcompany.shogi.game.Evaluation
 import com.tktkcompany.shogi.game.Game
 import com.tktkcompany.shogi.game.GameResult
 import com.tktkcompany.shogi.game.Kifu
+import com.tktkcompany.shogi.game.KifuStyle
 import com.tktkcompany.shogi.game.Move
 import com.tktkcompany.shogi.game.PieceType
 import com.tktkcompany.shogi.game.Player
@@ -21,6 +26,7 @@ import com.tktkcompany.shogi.game.ReviewState
 import com.tktkcompany.shogi.game.Square
 import com.tktkcompany.shogi.game.Usi
 import com.tktkcompany.shogi.online.FirebaseOnlineRepository
+import com.tktkcompany.shogi.online.OnlineException
 import com.tktkcompany.shogi.online.OnlineRepository
 import com.tktkcompany.shogi.online.RemoteMove
 import com.tktkcompany.shogi.online.RemoteReview
@@ -37,10 +43,10 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 
-enum class GameMode(val label: String) {
-    VS_CPU("CPUと対局"),
-    VS_HUMAN("2人で対局"),
-    ONLINE("オンライン対戦"),
+enum class GameMode(@StringRes val label: Int) {
+    VS_CPU(R.string.mode_vs_cpu),
+    VS_HUMAN(R.string.mode_vs_human),
+    ONLINE(R.string.mode_online),
 }
 
 enum class Screen { HOME, LOBBY, GAME }
@@ -57,7 +63,7 @@ data class OnlineSession(val code: String, val uid: String, val myColor: Player)
 data class LobbyState(
     val busy: Boolean = false,
     val waitingCode: String? = null,
-    val error: String? = null,
+    val error: UiText? = null,
 )
 
 /** 感想戦の表示内容。 */
@@ -76,13 +82,13 @@ data class AiUi(
     val thinking: Boolean,
     /** 盤上に矢印で示す最善手。 */
     val bestMove: Move? = null,
-    /** 形勢(例: "+350 先手有利")。 */
-    val score: String = "",
+    /** 形勢(例: "+350 先手有利"として表示する)。 */
+    val evaluation: Evaluation? = null,
     /** 読み筋の棋譜表記(先頭が最善手)。 */
     val line: List<String> = emptyList(),
     val depth: Int = 0,
     /** 最善手を出せないときの説明(詰みの局面など)。 */
-    val note: String? = null,
+    val note: UiText? = null,
 )
 
 /** チャットの1行。 */
@@ -103,7 +109,7 @@ data class UiState(
     val cpuThinking: Boolean = false,
     val moveCount: Int = 0,
     val online: OnlineSession? = null,
-    val error: String? = null,
+    val error: UiText? = null,
     /** 感想戦中なら non-null。 */
     val review: ReviewUi? = null,
     val chat: List<ChatLine> = emptyList(),
@@ -114,11 +120,11 @@ data class UiState(
 ) {
     val inCheck: Boolean get() = position.isInCheck(position.turn)
 
-    /** 駒台に表示するプレイヤー名。 */
-    fun nameOf(player: Player): String = when (mode) {
-        GameMode.VS_HUMAN -> player.label
-        GameMode.VS_CPU -> if (player == Player.SENTE) "あなた" else "CPU"
-        GameMode.ONLINE -> if (player == online?.myColor) "あなた" else "相手"
+    /** この端末の利用者が指す側か(2人対局ではどちらも false)。 */
+    fun isMe(player: Player): Boolean = when (mode) {
+        GameMode.VS_HUMAN -> false
+        GameMode.VS_CPU -> player == Player.SENTE
+        GameMode.ONLINE -> player == online?.myColor
     }
 }
 
@@ -159,7 +165,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     val onlineAvailable: Boolean get() = repository != null
 
     /** オンライン対戦が使えない理由。 */
-    val onlineProblem: String? get() = onlineSetup.problem
+    val onlineProblem: UiText? get() = onlineSetup.problem
 
     var screen by mutableStateOf(Screen.HOME)
         private set
@@ -179,6 +185,20 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleSound() {
         soundEnabled = !soundEnabled
         prefs.edit().putBoolean(KEY_SOUND, soundEnabled).apply()
+    }
+
+    /** 棋譜の表記(端末の言語で決まる)。 */
+    private var kifuStyle = KifuStyle.JAPANESE
+
+    /** 棋譜の表記を切り替える。表示中の棋譜も新しい表記で作り直す。 */
+    fun setKifuStyle(style: KifuStyle) {
+        if (style == kifuStyle) return
+        kifuStyle = style
+        if (review != null) review = Review(game.moves, style = style)
+        val cpuThinking = state.cpuThinking
+        refresh()
+        state = state.copy(cpuThinking = cpuThinking)
+        if (aiEnabled) analyze(displayPosition(), state.lastMove)
     }
 
     // ---- 画面遷移 ----
@@ -222,7 +242,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                lobby = LobbyState(error = e.message ?: "部屋を作れませんでした")
+                lobby = LobbyState(error = e.text(R.string.error_create_room))
             }
         }
     }
@@ -231,7 +251,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         val repo = repository ?: return
         val trimmed = code.trim()
         if (trimmed.length != 6 || !trimmed.all { it.isDigit() }) {
-            lobby = LobbyState(error = "部屋番号は6桁の数字です")
+            lobby = LobbyState(error = UiText(R.string.error_room_code_format))
             return
         }
         lobby = LobbyState(busy = true)
@@ -243,7 +263,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                lobby = LobbyState(error = e.message ?: "部屋に参加できませんでした")
+                lobby = LobbyState(error = e.text(R.string.error_join_room))
             }
         }
     }
@@ -252,6 +272,10 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         stopOnline()
         lobby = LobbyState()
     }
+
+    /** オンライン対戦の失敗ならその説明、それ以外なら [fallback] の文言。 */
+    private fun Exception.text(@StringRes fallback: Int): UiText =
+        (this as? OnlineException)?.text ?: UiText(fallback)
 
     private fun stopOnline() {
         roomJob?.cancel()
@@ -270,7 +294,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val message = e.message ?: "通信エラーが発生しました"
+                val message = e.text(R.string.error_network)
                 if (screen == Screen.GAME) state = state.copy(error = message)
                 else lobby = LobbyState(error = message)
             }
@@ -298,7 +322,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         }
         refresh()
         if (replay.invalidAt != null) {
-            state = state.copy(error = "${replay.invalidAt + 1}手目に不正な手を受信したため、その手を無視しました")
+            state = state.copy(error = UiText(R.string.error_invalid_move_received, replay.invalidAt + 1))
         }
     }
 
@@ -307,7 +331,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     /** 終局後に感想戦を始める。オンラインでは相手と局面を共有する。 */
     fun startReview() {
         if (!game.isOver || review != null) return
-        val r = Review(game.moves)
+        val r = Review(game.moves, style = kifuStyle)
         review = r
         resultDismissed = true
         val remote = latestRoom?.review
@@ -350,7 +374,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         engine.stop()
         aiPosition = position
         if (position.legalMoves().isEmpty()) {
-            state = state.copy(ai = AiUi(thinking = false, note = "指せる手がありません(詰み)"))
+            state = state.copy(ai = AiUi(thinking = false, note = UiText(R.string.ai_no_moves)))
             return
         }
         state = state.copy(ai = AiUi(thinking = true))
@@ -365,7 +389,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
                 // 表示をやめてエンジンを終了させたときもここに来る
                 ensureActive()
                 shown.cancel()
-                state = state.copy(ai = AiUi(thinking = false, note = "AIを起動できませんでした"))
+                state = state.copy(ai = AiUi(thinking = false, note = UiText(R.string.ai_failed)))
                 return@launch
             } finally {
                 updates.close()
@@ -382,14 +406,14 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         var last = previous
         for (move in analysis.pv.take(AI_LINE_LENGTH)) {
             if (!pos.isLegal(move)) break
-            line += Kifu.format(pos, move, last)
+            line += Kifu.format(pos, move, last, kifuStyle)
             pos = pos.apply(move)
             last = move
         }
         return AiUi(
             thinking = thinking,
             bestMove = analysis.bestMove.takeIf { line.isNotEmpty() },
-            score = analysis.describe(position.turn),
+            evaluation = analysis.evaluate(position.turn),
             line = line,
             depth = analysis.depth,
         )
@@ -421,7 +445,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state = state.copy(error = e.message ?: "感想戦の局面を共有できませんでした")
+                state = state.copy(error = e.text(R.string.error_share_review))
             }
         }
     }
@@ -438,7 +462,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state = state.copy(error = e.message ?: "メッセージを送れませんでした")
+                state = state.copy(error = e.text(R.string.error_send_chat))
             }
         }
     }
@@ -530,7 +554,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        state = state.copy(error = "投了の送信に失敗しました")
+                        state = state.copy(error = UiText(R.string.error_send_resign))
                     }
                 }
             }
@@ -588,7 +612,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state = state.copy(error = "指し手の送信に失敗しました。通信状態を確認してください")
+                state = state.copy(error = UiText(R.string.error_send_move))
             }
         }
     }
@@ -617,7 +641,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             selection = if (samePosition) state.selection else null,
             targets = if (samePosition) state.targets else emptySet(),
             lastMove = if (view != null) view.lastMove else game.lastMove,
-            lastMoveNotation = if (view != null) view.lastMoveNotation else game.lastMoveNotation,
+            lastMoveNotation = if (view != null) view.lastMoveNotation else game.lastMoveNotation(kifuStyle),
             pendingPromotion = if (samePosition) state.pendingPromotion else null,
             result = game.result,
             showResultDialog = game.result != null && !resultDismissed,

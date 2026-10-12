@@ -35,10 +35,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tktkcompany.shogi.R
 import com.tktkcompany.shogi.ui.components.AdBanner
 import com.tktkcompany.shogi.ui.components.BoardView
 import com.tktkcompany.shogi.ui.components.PieceStandView
@@ -91,11 +93,17 @@ fun GameScreen(viewModel: ShogiViewModel) {
             TopBar(
                 title = when {
                     // 感想戦では場所を節約するため、手数もここに表示する
-                    review != null -> "感想戦　${review.index} / ${review.total}手" +
-                        if (review.isVariation) "(変化 ${review.variationNotations.size}手)" else ""
-                    else -> state.online?.let { "部屋 ${it.code}" } ?: state.mode.label
+                    review == null ->
+                        state.online?.let { stringResource(R.string.room_title, it.code) } ?: stringResource(state.mode.label)
+                    review.isVariation -> stringResource(
+                        R.string.review_title_variation,
+                        review.index,
+                        review.total,
+                        review.variationNotations.size,
+                    )
+                    else -> stringResource(R.string.review_title, review.index, review.total)
                 },
-                backLabel = if (review != null) "‹ 感想戦を終える" else "‹ メニュー",
+                backLabel = stringResource(if (review != null) R.string.back_exit_review else R.string.back_menu),
                 soundEnabled = viewModel.soundEnabled,
                 onToggleSound = viewModel::toggleSound,
                 onBack = leave,
@@ -157,11 +165,16 @@ fun GameScreen(viewModel: ShogiViewModel) {
                 return@Column
             }
             if (state.partnerInReview) {
-                Text("相手が感想戦を始めました", fontFamily = Mincho, color = Shu, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.partner_started_review),
+                    fontFamily = Mincho,
+                    color = Shu,
+                    fontWeight = FontWeight.Bold,
+                )
             }
             if (state.result != null) {
                 ShuButton(
-                    if (state.online != null) "感想戦(チャットで話しながら)" else "感想戦",
+                    stringResource(if (state.online != null) R.string.review_with_chat else R.string.review),
                     Modifier.fillMaxWidth(),
                     onClick = viewModel::startReview,
                 )
@@ -171,11 +184,20 @@ fun GameScreen(viewModel: ShogiViewModel) {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (state.mode != GameMode.ONLINE) {
-                    SumiButton("待った", Modifier.weight(1f), enabled = viewModel.canUndo(), onClick = viewModel::undo)
+                    SumiButton(
+                        stringResource(R.string.undo),
+                        Modifier.weight(1f),
+                        enabled = viewModel.canUndo(),
+                        onClick = viewModel::undo,
+                    )
                 }
-                SumiButton("投了", Modifier.weight(1f), enabled = state.result == null) { confirmResign = true }
+                SumiButton(stringResource(R.string.resign), Modifier.weight(1f), enabled = state.result == null) {
+                    confirmResign = true
+                }
                 if (state.mode != GameMode.ONLINE) {
-                    ShuButton("新規対局", Modifier.weight(1f)) { viewModel.startLocalGame(state.mode) }
+                    ShuButton(stringResource(R.string.new_game), Modifier.weight(1f)) {
+                        viewModel.startLocalGame(state.mode)
+                    }
                 }
             }
         }
@@ -229,29 +251,29 @@ private fun TopBar(
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
         TextButton(onClick = onToggleSound) {
-            Text(if (soundEnabled) "音 あり" else "音 なし", color = Sumi, fontFamily = Mincho)
+            Text(
+                stringResource(if (soundEnabled) R.string.sound_on else R.string.sound_off),
+                color = Sumi,
+                fontFamily = Mincho,
+            )
         }
     }
 }
 
 @Composable
 private fun StatusBar(state: UiState) {
-    val online = state.online
     val result = state.result
     val review = state.review
+    val turn = state.position.turn
     val text = when {
         // 感想戦の手数は上のバーに表示している
         review != null -> null
-        result != null -> "対局終了 ― ${result.message}"
-        state.cpuThinking -> "CPUが考えています…"
-        else -> buildString {
-            append("${state.moveCount + 1}手目　")
-            when {
-                online == null && state.mode == GameMode.VS_HUMAN -> append("${state.position.turn.label}の番")
-                state.nameOf(state.position.turn) == "あなた" -> append("あなたの番です")
-                else -> append("${state.nameOf(state.position.turn)}の番です")
-            }
-        }
+        result != null -> stringResource(R.string.status_game_over, result.message())
+        state.cpuThinking -> stringResource(R.string.status_cpu_thinking)
+        state.mode == GameMode.VS_HUMAN ->
+            stringResource(R.string.status_turn_player, state.moveCount + 1, state.nameOf(turn))
+        state.isMe(turn) -> stringResource(R.string.status_turn_you, state.moveCount + 1)
+        else -> stringResource(R.string.status_turn_other, state.moveCount + 1, state.nameOf(turn))
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         if (text != null) {
@@ -264,7 +286,8 @@ private fun StatusBar(state: UiState) {
             )
         }
         Text(
-            text = state.lastMoveNotation?.let { "直前の手　$it" } ?: "対局開始",
+            text = state.lastMoveNotation?.let { stringResource(R.string.last_move, it) }
+                ?: stringResource(R.string.game_start),
             fontFamily = Mincho,
             fontSize = 14.sp,
             color = Sumi.copy(alpha = 0.75f),
@@ -289,7 +312,7 @@ private fun CheckFlash(moveCount: Int, inCheck: Boolean) {
         exit = fadeOut() + scaleOut(targetScale = 0.8f),
     ) {
         Text(
-            "王手",
+            stringResource(R.string.check),
             style = TextStyle(
                 fontFamily = Mincho,
                 fontWeight = FontWeight.Black,
@@ -314,12 +337,12 @@ private fun GameDialogs(
     state.pendingPromotion?.let {
         AlertDialog(
             onDismissRequest = viewModel::onPromotionCancelled,
-            title = { Text("成りますか？") },
+            title = { Text(stringResource(R.string.promote_title)) },
             confirmButton = {
-                ShuButton("成る") { viewModel.onPromotionChosen(true) }
+                ShuButton(stringResource(R.string.promote_yes)) { viewModel.onPromotionChosen(true) }
             },
             dismissButton = {
-                SumiButton("成らない") { viewModel.onPromotionChosen(false) }
+                SumiButton(stringResource(R.string.promote_no)) { viewModel.onPromotionChosen(false) }
             },
         )
     }
@@ -327,11 +350,13 @@ private fun GameDialogs(
     val result = state.result
     if (state.showResultDialog && result != null) {
         val online = state.online
+        val won = result.winner != null && state.isMe(result.winner)
         val title = when {
-            result.winner == null -> "引き分け"
-            state.mode == GameMode.VS_HUMAN -> "${result.winner.label}の勝ち"
-            state.nameOf(result.winner) == "あなた" -> "勝ち！"
-            else -> "負け"
+            result.winner == null -> stringResource(R.string.result_draw)
+            state.mode == GameMode.VS_HUMAN ->
+                stringResource(R.string.result_player_wins, stringResource(result.winner.label))
+            won -> stringResource(R.string.result_you_win)
+            else -> stringResource(R.string.result_you_lose)
         }
         AlertDialog(
             onDismissRequest = viewModel::dismissResult,
@@ -341,21 +366,29 @@ private fun GameDialogs(
                     fontFamily = Mincho,
                     fontWeight = FontWeight.Black,
                     fontSize = 32.sp,
-                    color = if (title == "勝ち！") Shu else Sumi,
+                    color = if (won) Shu else Sumi,
                 )
             },
-            text = { Text("${state.moveCount}手で${result.message}", fontFamily = Mincho) },
+            text = {
+                Text(stringResource(R.string.result_summary, state.moveCount, result.message()), fontFamily = Mincho)
+            },
             confirmButton = {
-                ShuButton("感想戦", onClick = viewModel::startReview)
+                ShuButton(stringResource(R.string.review), onClick = viewModel::startReview)
             },
             dismissButton = {
                 Row {
                     if (online != null) {
-                        TextButton(onClick = viewModel::backToHome) { Text("メニューへ", color = Sumi) }
+                        TextButton(onClick = viewModel::backToHome) {
+                            Text(stringResource(R.string.to_menu), color = Sumi)
+                        }
                     } else {
-                        TextButton(onClick = { viewModel.startLocalGame(state.mode) }) { Text("もう一局", color = Sumi) }
+                        TextButton(onClick = { viewModel.startLocalGame(state.mode) }) {
+                            Text(stringResource(R.string.play_again), color = Sumi)
+                        }
                     }
-                    TextButton(onClick = viewModel::dismissResult) { Text("閉じる", color = Sumi) }
+                    TextButton(onClick = viewModel::dismissResult) {
+                        Text(stringResource(R.string.close), color = Sumi)
+                    }
                 }
             },
         )
@@ -364,15 +397,17 @@ private fun GameDialogs(
     if (confirmResign) {
         AlertDialog(
             onDismissRequest = { onConfirmResignChange(false) },
-            title = { Text("投了しますか？") },
+            title = { Text(stringResource(R.string.resign_title)) },
             confirmButton = {
-                ShuButton("投了する") {
+                ShuButton(stringResource(R.string.resign_confirm)) {
                     onConfirmResignChange(false)
                     viewModel.resign()
                 }
             },
             dismissButton = {
-                TextButton(onClick = { onConfirmResignChange(false) }) { Text("続ける", color = Sumi) }
+                TextButton(onClick = { onConfirmResignChange(false) }) {
+                    Text(stringResource(R.string.keep_playing), color = Sumi)
+                }
             },
         )
     }
@@ -380,16 +415,18 @@ private fun GameDialogs(
     if (confirmLeave) {
         AlertDialog(
             onDismissRequest = { onConfirmLeaveChange(false) },
-            title = { Text("対局をやめますか？") },
-            text = { Text("対局中に退出すると投了になります。") },
+            title = { Text(stringResource(R.string.leave_title)) },
+            text = { Text(stringResource(R.string.leave_text)) },
             confirmButton = {
-                ShuButton("退出する") {
+                ShuButton(stringResource(R.string.leave_confirm)) {
                     onConfirmLeaveChange(false)
                     viewModel.backToHome()
                 }
             },
             dismissButton = {
-                TextButton(onClick = { onConfirmLeaveChange(false) }) { Text("続ける", color = Sumi) }
+                TextButton(onClick = { onConfirmLeaveChange(false) }) {
+                    Text(stringResource(R.string.keep_playing), color = Sumi)
+                }
             },
         )
     }
@@ -397,9 +434,9 @@ private fun GameDialogs(
     state.error?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("エラー") },
-            text = { Text(message) },
-            confirmButton = { ShuButton("OK", onClick = viewModel::dismissError) },
+            title = { Text(stringResource(R.string.error_title)) },
+            text = { Text(message.resolve()) },
+            confirmButton = { ShuButton(stringResource(R.string.ok), onClick = viewModel::dismissError) },
         )
     }
 }

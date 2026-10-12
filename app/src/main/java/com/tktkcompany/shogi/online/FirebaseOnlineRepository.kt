@@ -12,6 +12,8 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.MutableData
 import com.google.firebase.database.Transaction
 import com.google.firebase.database.ValueEventListener
+import com.tktkcompany.shogi.R
+import com.tktkcompany.shogi.UiText
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -44,7 +46,7 @@ class FirebaseOnlineRepository private constructor(
     override suspend fun signIn(): String = firebaseCall {
         auth.currentUser?.let { return@firebaseCall it.uid }
         val user = auth.signInAnonymously().await().user
-        user?.uid ?: throw OnlineException("ログインに失敗しました")
+        user?.uid ?: throw OnlineException(R.string.online_sign_in_failed)
     }
 
     override suspend fun createRoom(uid: String): String = firebaseCall {
@@ -59,12 +61,12 @@ class FirebaseOnlineRepository private constructor(
             }
             if (committed) return@firebaseCall code
         }
-        throw OnlineException("部屋を作れませんでした。もう一度お試しください")
+        throw OnlineException(R.string.online_create_room_retry)
     }
 
     override suspend fun joinRoom(code: String, uid: String): Unit = firebaseCall {
         val ref = rooms.child(code)
-        if (!ref.get().await().exists()) throw OnlineException("部屋が見つかりません")
+        if (!ref.get().await().exists()) throw OnlineException(R.string.online_room_not_found)
         val (_, snapshot) = ref.runTransactionAwait { data ->
             // 初回はローカルキャッシュ(null の場合あり)で呼ばれるため、変更せずに成功を返して
             // サーバーの値での再実行を待つ
@@ -80,12 +82,12 @@ class FirebaseOnlineRepository private constructor(
             Transaction.success(data)
         }
         when {
-            snapshot == null || !snapshot.exists() -> throw OnlineException("部屋が見つかりません")
+            snapshot == null || !snapshot.exists() -> throw OnlineException(R.string.online_room_not_found)
             snapshot.child("hostUid").getValue(String::class.java) == uid ->
-                throw OnlineException("自分が作った部屋には参加できません")
+                throw OnlineException(R.string.online_own_room)
             // 同じ端末からの再参加は guestUid が自分なのでそのまま成功扱い
             snapshot.child("guestUid").getValue(String::class.java) != uid ->
-                throw OnlineException("この部屋はすでに対局中か終了しています")
+                throw OnlineException(R.string.online_room_unavailable)
         }
         Unit
     }
@@ -134,7 +136,7 @@ class FirebaseOnlineRepository private constructor(
     }
 
     /**
-     * Firebase の処理を時間制限付きで実行し、失敗したら原因がわかる日本語のメッセージに変換する。
+     * Firebase の処理を時間制限付きで実行し、失敗したら原因がわかるメッセージに変換する。
      */
     private suspend fun <T> firebaseCall(block: suspend () -> T): T =
         try {
@@ -142,9 +144,7 @@ class FirebaseOnlineRepository private constructor(
         } catch (e: OnlineException) {
             throw e
         } catch (e: TimeoutCancellationException) {
-            throw OnlineException(
-                "サーバーから応答がありません。通信状態と、Realtime Database が作成済みかを確認してください"
-            )
+            throw OnlineException(R.string.online_timeout)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -218,9 +218,7 @@ class FirebaseOnlineRepository private constructor(
             if (FirebaseApp.getApps(context).isEmpty()) {
                 return OnlineSetup(
                     repository = null,
-                    problem = "Firebase が初期化されていません。google-services.json が app フォルダ直下に" +
-                        "「google-services.json」という名前で置かれているか確認し、Gradle Sync してから" +
-                        "ビルドし直してください",
+                    problem = UiText(R.string.online_not_initialized),
                 )
             }
             return try {
@@ -229,25 +227,23 @@ class FirebaseOnlineRepository private constructor(
             } catch (e: Exception) {
                 OnlineSetup(
                     repository = null,
-                    problem = "Realtime Database の接続先がわかりません。Firebase で Realtime Database を作成した後に" +
-                        "google-services.json をダウンロードし直して置き換えてください(${e.message})",
+                    problem = UiText(R.string.online_no_database, e.message.orEmpty()),
                 )
             }
         }
 
-        private fun describe(e: Throwable): String {
+        private fun describe(e: Throwable): UiText {
             val detail = e.message.orEmpty()
             return when {
-                e is FirebaseNetworkException -> "インターネットに接続できません"
+                e is FirebaseNetworkException -> UiText(R.string.online_no_internet)
                 e is FirebaseAuthException && (
                     e.errorCode == "ERROR_OPERATION_NOT_ALLOWED" ||
                         e.errorCode == "ERROR_ADMIN_RESTRICTED_OPERATION" ||
                         detail.contains("administrators", true)
-                    ) -> "匿名ログインが有効になっていません。Firebase の Authentication > ログイン方法 で「匿名」を有効にしてください"
-                e is FirebaseAuthException -> "ログインに失敗しました($detail)"
-                detail.contains("permission", true) ->
-                    "データベースへのアクセスが拒否されました。Realtime Database のルールに database.rules.json の内容を貼り付けて公開してください"
-                else -> "通信エラー: ${e.javaClass.simpleName} $detail"
+                    ) -> UiText(R.string.online_anonymous_disabled)
+                e is FirebaseAuthException -> UiText(R.string.online_sign_in_failed_detail, detail)
+                detail.contains("permission", true) -> UiText(R.string.online_permission_denied)
+                else -> UiText(R.string.online_error_detail, e.javaClass.simpleName, detail)
             }
         }
     }

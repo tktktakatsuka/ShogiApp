@@ -48,20 +48,21 @@ class AnalysisTest {
     @Test
     fun `形勢は先手から見た値で説明する`() {
         fun cp(value: Int) = Analysis(depth = 1, scoreCp = value, mate = null, pv = emptyList())
-        assertEquals("+120 互角", cp(120).describe(Player.SENTE))
-        assertEquals("-120 互角", cp(120).describe(Player.GOTE))
-        assertEquals("0 互角", cp(0).describe(Player.GOTE))
-        assertEquals("+350 先手有利", cp(350).describe(Player.SENTE))
-        assertEquals("+350 先手有利", cp(-350).describe(Player.GOTE))
-        assertEquals("-1200 後手優勢", cp(-1200).describe(Player.SENTE))
-        assertEquals("-3000 後手勝勢", cp(3000).describe(Player.GOTE))
+        fun score(cp: Int, leader: Player, level: Evaluation.Level) = Evaluation.Score(cp, leader, level)
+        assertEquals(score(120, Player.SENTE, Evaluation.Level.EVEN), cp(120).evaluate(Player.SENTE))
+        assertEquals(score(-120, Player.GOTE, Evaluation.Level.EVEN), cp(120).evaluate(Player.GOTE))
+        assertEquals(score(0, Player.SENTE, Evaluation.Level.EVEN), cp(0).evaluate(Player.GOTE))
+        assertEquals(score(350, Player.SENTE, Evaluation.Level.ADVANTAGE), cp(350).evaluate(Player.SENTE))
+        assertEquals(score(350, Player.SENTE, Evaluation.Level.ADVANTAGE), cp(-350).evaluate(Player.GOTE))
+        assertEquals(score(-1200, Player.GOTE, Evaluation.Level.CLEAR_ADVANTAGE), cp(-1200).evaluate(Player.SENTE))
+        assertEquals(score(-3000, Player.GOTE, Evaluation.Level.WINNING), cp(3000).evaluate(Player.GOTE))
     }
 
     @Test
     fun `詰みは勝つ側と手数で説明する`() {
         fun mate(win: Boolean, moves: Int?) = Analysis(1, null, Analysis.Mate(win, moves), emptyList())
-        assertEquals("先手の勝ち(5手詰)", mate(true, 5).describe(Player.SENTE))
-        assertEquals("後手の勝ち(4手詰)", mate(false, 4).describe(Player.SENTE))
-        assertEquals("後手の勝ち(詰み)", mate(true, null).describe(Player.GOTE))
+        assertEquals(Evaluation.Mate(Player.SENTE, 5), mate(true, 5).evaluate(Player.SENTE))
+        assertEquals(Evaluation.Mate(Player.GOTE, 4), mate(false, 4).evaluate(Player.SENTE))
+        assertEquals(Evaluation.Mate(Player.GOTE, null), mate(true, null).evaluate(Player.GOTE))
     }
 }

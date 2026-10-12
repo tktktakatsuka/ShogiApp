@@ -42,3 +42,51 @@
 
 ※ オンライン対戦と感想戦のチャットにはインターネット接続が必要です。
 ※ アプリ内に広告が表示されます。
+
+---
+
+# Google Play store listing (English, en-US)
+
+## App name (up to 30 characters)
+
+Shogi - Review Chat & AI
+
+## Short description (up to 80 characters)
+
+Play shogi online with friends, then review together with chat and AI hints.
+
+## Full description (up to 4000 characters)
+
+The game isn't over when the last move is played. This shogi (Japanese chess) app lets you enjoy the post-game review as well.
+
+■ Play online with friends
+Create a room and share the 6-digit room code. No account or email address is needed, so you can start playing right away. The board is flipped for the Gote player, so both players see it from their own side.
+
+■ Review the game while chatting
+After the game, you and your opponent can review it on the same board.
+・When either player steps back or forward, the other player's screen follows
+・Try other moves on the board to see what would have happened
+・Talk it over in chat (with quick-phrase buttons such as "Thank you for the game")
+・Jump straight to any position from the move list
+
+■ Look back with the AI's best move
+During the review, the AI shows the best move for the current position as an arrow on the board, along with the evaluation and the expected line. The analysis runs on your device, so it uses no mobile data.
+
+■ CPU and two-player games
+Play alone against the CPU, or share one device with a friend. You can review these games afterwards too.
+
+■ Traditional Japanese design
+A wood-grain board, five-sided pieces with kanji, a washi paper background and serif lettering. Pieces land with a satisfying click (which you can turn off).
+
+■ The rules are handled for you
+Illegal moves such as two pawns on a file, pawn-drop mate and pieces with no legal move are prevented automatically. Promotion choices, check alerts, checkmate and repetition are all supported.
+
+[Recommended for]
+・Playing shogi casually with friends and family
+・Talking over the game with your opponent afterwards
+・Learning why you lost so you can improve
+・Beginners who want to learn the rules as they play
+
+* The pieces are shown with their traditional kanji. Moves are written in Western notation (for example, P-7f).
+* Online play and review chat require an internet connection.
+* This app contains ads.

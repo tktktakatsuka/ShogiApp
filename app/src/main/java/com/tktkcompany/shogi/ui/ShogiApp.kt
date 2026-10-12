@@ -30,18 +30,24 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.booleanResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tktkcompany.shogi.R
+import com.tktkcompany.shogi.UiText
+import com.tktkcompany.shogi.game.KifuStyle
 import com.tktkcompany.shogi.game.PieceType
 import com.tktkcompany.shogi.ui.components.AdBanner
 import com.tktkcompany.shogi.ui.components.PieceView
@@ -57,6 +63,9 @@ import com.tktkcompany.shogi.ui.theme.Sumi
 /** アプリ全体。画面(ホーム / オンラインロビー / 対局)を切り替える。 */
 @Composable
 fun ShogiApp(viewModel: ShogiViewModel = viewModel()) {
+    // 棋譜の表記は端末の言語に合わせる(日本語なら日本式、それ以外は英語式)
+    val kifuStyle = if (booleanResource(R.bool.western_kifu)) KifuStyle.WESTERN else KifuStyle.JAPANESE
+    LaunchedEffect(kifuStyle) { viewModel.setKifuStyle(kifuStyle) }
     Surface(modifier = Modifier.fillMaxSize(), color = Kinari, contentColor = Sumi) {
         AppContent(viewModel)
     }
@@ -97,7 +106,7 @@ private fun AppContent(viewModel: ShogiViewModel) {
 @Composable
 private fun HomeScreen(
     onlineAvailable: Boolean,
-    onlineProblem: String?,
+    onlineProblem: UiText?,
     soundEnabled: Boolean,
     onToggleSound: () -> Unit,
     onStart: (GameMode) -> Unit,
@@ -117,7 +126,7 @@ private fun HomeScreen(
 @Composable
 private fun HomeMenu(
     onlineAvailable: Boolean,
-    onlineProblem: String?,
+    onlineProblem: UiText?,
     soundEnabled: Boolean,
     onToggleSound: () -> Unit,
     onStart: (GameMode) -> Unit,
@@ -133,10 +142,14 @@ private fun HomeMenu(
     ) {
         Logo()
         Spacer(Modifier.height(20.dp))
-        ShuButton(GameMode.VS_CPU.label, Modifier.fillMaxWidth(), height = 56.dp) { onStart(GameMode.VS_CPU) }
-        ShuButton(GameMode.VS_HUMAN.label, Modifier.fillMaxWidth(), height = 56.dp) { onStart(GameMode.VS_HUMAN) }
+        ShuButton(stringResource(GameMode.VS_CPU.label), Modifier.fillMaxWidth(), height = 56.dp) {
+            onStart(GameMode.VS_CPU)
+        }
+        ShuButton(stringResource(GameMode.VS_HUMAN.label), Modifier.fillMaxWidth(), height = 56.dp) {
+            onStart(GameMode.VS_HUMAN)
+        }
         ShuButton(
-            GameMode.ONLINE.label,
+            stringResource(GameMode.ONLINE.label),
             Modifier.fillMaxWidth(),
             enabled = onlineAvailable,
             height = 56.dp,
@@ -144,7 +157,7 @@ private fun HomeMenu(
         )
         if (!onlineAvailable) {
             Text(
-                onlineProblem ?: "オンライン対戦を使うには Firebase の設定(google-services.json)が必要です",
+                onlineProblem?.resolve() ?: stringResource(R.string.online_needs_firebase),
                 fontSize = 12.sp,
                 color = Shu,
                 textAlign = TextAlign.Center,
@@ -152,7 +165,7 @@ private fun HomeMenu(
         }
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("効果音・振動", fontFamily = Mincho, color = Sumi)
+            Text(stringResource(R.string.sound_and_vibration), fontFamily = Mincho, color = Sumi)
             Spacer(Modifier.width(12.dp))
             Switch(
                 checked = soundEnabled,
@@ -209,11 +222,17 @@ private fun LobbyScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
-        Text("オンライン対戦", fontFamily = Mincho, fontWeight = FontWeight.Black, fontSize = 30.sp, color = Sumi)
+        Text(
+            stringResource(R.string.mode_online),
+            fontFamily = Mincho,
+            fontWeight = FontWeight.Black,
+            fontSize = 30.sp,
+            color = Sumi,
+        )
 
         when {
             lobby.waitingCode != null -> {
-                Text("部屋番号", fontFamily = Mincho, color = Sumi)
+                Text(stringResource(R.string.room_code), fontFamily = Mincho, color = Sumi)
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -231,27 +250,32 @@ private fun LobbyScreen(
                     )
                 }
                 Text(
-                    "この番号を相手に伝えてください。\n相手が参加すると対局が始まります(あなたは先手)。",
+                    stringResource(R.string.lobby_waiting),
                     textAlign = TextAlign.Center,
                     color = Sumi,
                 )
                 CircularProgressIndicator(color = Shu)
-                SumiButton("やめる", onClick = onCancelWaiting)
+                SumiButton(stringResource(R.string.cancel), onClick = onCancelWaiting)
             }
             lobby.busy -> CircularProgressIndicator(color = Shu)
             else -> {
-                ShuButton("部屋を作る(先手)", Modifier.fillMaxWidth(), height = 56.dp, onClick = onCreate)
+                ShuButton(
+                    stringResource(R.string.create_room),
+                    Modifier.fillMaxWidth(),
+                    height = 56.dp,
+                    onClick = onCreate,
+                )
                 HorizontalDivider(Modifier.padding(vertical = 8.dp), color = Kincha)
                 OutlinedTextField(
                     value = code,
                     onValueChange = { input -> code = input.filter { it.isDigit() }.take(6) },
-                    label = { Text("部屋番号(6桁)") },
+                    label = { Text(stringResource(R.string.room_code_hint)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 ShuButton(
-                    "部屋に参加する(後手)",
+                    stringResource(R.string.join_room),
                     Modifier.fillMaxWidth(),
                     enabled = code.length == 6,
                     height = 56.dp,
@@ -260,9 +284,11 @@ private fun LobbyScreen(
         }
 
         lobby.error?.let {
-            Text(it, color = Shu, textAlign = TextAlign.Center)
+            Text(it.resolve(), color = Shu, textAlign = TextAlign.Center)
         }
         Spacer(Modifier.size(8.dp))
-        TextButton(onClick = onBack) { Text("メニューに戻る", color = Sumi, fontFamily = Mincho) }
+        TextButton(onClick = onBack) {
+            Text(stringResource(R.string.back_to_menu), color = Sumi, fontFamily = Mincho)
+        }
     }
 }
