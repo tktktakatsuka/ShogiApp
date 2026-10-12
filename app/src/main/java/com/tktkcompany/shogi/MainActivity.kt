@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.tktkcompany.shogi.ui.ShogiScreen
+import com.tktkcompany.shogi.ui.ShogiApp
 import com.tktkcompany.shogi.ui.theme.ShogiTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ShogiTheme {
-                ShogiScreen()
+                ShogiApp()
             }
         }
     }

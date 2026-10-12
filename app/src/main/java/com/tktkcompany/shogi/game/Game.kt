@@ -1,9 +1,19 @@
 package com.tktkcompany.shogi.game
 
-enum class GameResult(val message: String) {
-    SENTE_WIN("先手の勝ち"),
-    GOTE_WIN("後手の勝ち"),
-    SENNICHITE("千日手(引き分け)"),
+enum class EndReason {
+    CHECKMATE,
+    RESIGN,
+    SENNICHITE,
+}
+
+/** 終局結果。winner が null なら引き分け。 */
+data class GameResult(val winner: Player?, val reason: EndReason) {
+    val message: String
+        get() = when (reason) {
+            EndReason.CHECKMATE -> "詰み。${winner?.label}の勝ち"
+            EndReason.RESIGN -> "${winner?.opponent?.label}の投了。${winner?.label}の勝ち"
+            EndReason.SENNICHITE -> "千日手(引き分け)"
+        }
 }
 
 /** 対局全体の進行(局面履歴・待った・終局判定)を管理する。 */
@@ -30,6 +40,11 @@ class Game(initial: Position = Position.initial()) {
         return true
     }
 
+    /** player が投了する。 */
+    fun resign(player: Player) {
+        if (!isOver) result = GameResult(player.opponent, EndReason.RESIGN)
+    }
+
     /** 一手戻す。戻せた場合 true。 */
     fun undo(): Boolean {
         if (moveList.isEmpty()) return false
@@ -40,12 +55,10 @@ class Game(initial: Position = Position.initial()) {
     }
 
     private fun judge(next: Position): GameResult? {
-        if (next.isCheckmate()) {
-            return if (next.turn == Player.SENTE) GameResult.GOTE_WIN else GameResult.SENTE_WIN
-        }
+        if (next.isCheckmate()) return GameResult(next.turn.opponent, EndReason.CHECKMATE)
         // 同一局面が4回現れたら千日手(連続王手の千日手は簡易化のため区別しない)
         val sfen = next.toSfen()
-        if (positions.count { it.toSfen() == sfen } >= 4) return GameResult.SENNICHITE
+        if (positions.count { it.toSfen() == sfen } >= 4) return GameResult(null, EndReason.SENNICHITE)
         return null
     }
 }

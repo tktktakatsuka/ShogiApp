@@ -100,7 +100,7 @@ class PositionTest {
     fun gameDetectsWinner() {
         val game = Game(Position.fromSfen("4k4/9/4P4/9/9/9/9/9/8K b G"))
         assertTrue(game.play(Move.drop(PieceType.KIN, sq(5, 2))))
-        assertEquals(GameResult.SENTE_WIN, game.result)
+        assertEquals(GameResult(Player.SENTE, EndReason.CHECKMATE), game.result)
         assertTrue(game.undo())
         assertEquals(null, game.result)
     }
