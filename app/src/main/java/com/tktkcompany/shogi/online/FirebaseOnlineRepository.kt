@@ -2,6 +2,8 @@ package com.tktkcompany.shogi.online
 
 import android.content.Context
 import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -14,7 +16,10 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.random.Random
@@ -29,17 +34,18 @@ import kotlin.random.Random
  *   moves/{0,1,2,...}/ { usi, by }
  * ```
  */
-class FirebaseOnlineRepository private constructor() : OnlineRepository {
-    private val auth = FirebaseAuth.getInstance()
-    private val rooms: DatabaseReference = FirebaseDatabase.getInstance().reference.child("rooms")
+class FirebaseOnlineRepository private constructor(
+    private val auth: FirebaseAuth,
+    private val rooms: DatabaseReference,
+) : OnlineRepository {
 
-    override suspend fun signIn(): String {
-        auth.currentUser?.let { return it.uid }
+    override suspend fun signIn(): String = firebaseCall {
+        auth.currentUser?.let { return@firebaseCall it.uid }
         val user = auth.signInAnonymously().await().user
-        return user?.uid ?: throw OnlineException("ログインに失敗しました")
+        user?.uid ?: throw OnlineException("ログインに失敗しました")
     }
 
-    override suspend fun createRoom(uid: String): String {
+    override suspend fun createRoom(uid: String): String = firebaseCall {
         repeat(10) {
             val code = Random.nextInt(100000, 1000000).toString()
             val (committed, _) = rooms.child(code).runTransactionAwait { data ->
@@ -49,12 +55,12 @@ class FirebaseOnlineRepository private constructor() : OnlineRepository {
                 data.child("createdAt").value = System.currentTimeMillis()
                 Transaction.success(data)
             }
-            if (committed) return code
+            if (committed) return@firebaseCall code
         }
         throw OnlineException("部屋を作れませんでした。もう一度お試しください")
     }
 
-    override suspend fun joinRoom(code: String, uid: String) {
+    override suspend fun joinRoom(code: String, uid: String): Unit = firebaseCall {
         val ref = rooms.child(code)
         if (!ref.get().await().exists()) throw OnlineException("部屋が見つかりません")
         val (_, snapshot) = ref.runTransactionAwait { data ->
@@ -79,6 +85,7 @@ class FirebaseOnlineRepository private constructor() : OnlineRepository {
             snapshot.child("guestUid").getValue(String::class.java) != uid ->
                 throw OnlineException("この部屋はすでに対局中か終了しています")
         }
+        Unit
     }
 
     override fun observeRoom(code: String): Flow<Room?> = callbackFlow {
@@ -88,7 +95,7 @@ class FirebaseOnlineRepository private constructor() : OnlineRepository {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                close(OnlineException("通信エラー: ${error.message}"))
+                close(OnlineException(describe(error.toException())))
             }
         }
         val ref = rooms.child(code)
@@ -96,17 +103,37 @@ class FirebaseOnlineRepository private constructor() : OnlineRepository {
         awaitClose { ref.removeEventListener(listener) }
     }
 
-    override suspend fun sendMove(code: String, index: Int, move: RemoteMove) {
+    override suspend fun sendMove(code: String, index: Int, move: RemoteMove): Unit = firebaseCall {
         rooms.child(code).child("moves").child(index.toString())
             .setValue(mapOf("usi" to move.usi, "by" to move.by))
             .await()
+        Unit
     }
 
-    override suspend fun resign(code: String, uid: String) {
+    override suspend fun resign(code: String, uid: String): Unit = firebaseCall {
         rooms.child(code)
             .updateChildren(mapOf("resignedBy" to uid, "status" to "finished"))
             .await()
+        Unit
     }
+
+    /**
+     * Firebase の処理を時間制限付きで実行し、失敗したら原因がわかる日本語のメッセージに変換する。
+     */
+    private suspend fun <T> firebaseCall(block: suspend () -> T): T =
+        try {
+            withTimeout(TIMEOUT_MILLIS) { block() }
+        } catch (e: OnlineException) {
+            throw e
+        } catch (e: TimeoutCancellationException) {
+            throw OnlineException(
+                "サーバーから応答がありません。通信状態と、Realtime Database が作成済みかを確認してください"
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw OnlineException(describe(e))
+        }
 
     private fun DataSnapshot.toRoom(code: String): Room? {
         val host = child("hostUid").getValue(String::class.java) ?: return null
@@ -139,7 +166,7 @@ class FirebaseOnlineRepository private constructor() : OnlineRepository {
 
             override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
                 if (error != null) {
-                    cont.resumeWithException(OnlineException("通信エラー: ${error.message}"))
+                    cont.resumeWithException(OnlineException(describe(error.toException())))
                 } else {
                     cont.resume(committed to currentData)
                 }
@@ -148,8 +175,44 @@ class FirebaseOnlineRepository private constructor() : OnlineRepository {
     }
 
     companion object {
-        /** google-services.json が設定されていない(Firebase 未設定)場合は null。 */
-        fun createOrNull(context: Context): OnlineRepository? =
-            if (FirebaseApp.getApps(context).isEmpty()) null else FirebaseOnlineRepository()
+        private const val TIMEOUT_MILLIS = 15_000L
+
+        /** Firebase の設定を確認してリポジトリを作る。使えない場合はその理由を返す。 */
+        fun create(context: Context): OnlineSetup {
+            if (FirebaseApp.getApps(context).isEmpty()) {
+                return OnlineSetup(
+                    repository = null,
+                    problem = "Firebase が初期化されていません。google-services.json が app フォルダ直下に" +
+                        "「google-services.json」という名前で置かれているか確認し、Gradle Sync してから" +
+                        "ビルドし直してください",
+                )
+            }
+            return try {
+                val rooms = FirebaseDatabase.getInstance().reference.child("rooms")
+                OnlineSetup(FirebaseOnlineRepository(FirebaseAuth.getInstance(), rooms), problem = null)
+            } catch (e: Exception) {
+                OnlineSetup(
+                    repository = null,
+                    problem = "Realtime Database の接続先がわかりません。Firebase で Realtime Database を作成した後に" +
+                        "google-services.json をダウンロードし直して置き換えてください(${e.message})",
+                )
+            }
+        }
+
+        private fun describe(e: Throwable): String {
+            val detail = e.message.orEmpty()
+            return when {
+                e is FirebaseNetworkException -> "インターネットに接続できません"
+                e is FirebaseAuthException && (
+                    e.errorCode == "ERROR_OPERATION_NOT_ALLOWED" ||
+                        e.errorCode == "ERROR_ADMIN_RESTRICTED_OPERATION" ||
+                        detail.contains("administrators", true)
+                    ) -> "匿名ログインが有効になっていません。Firebase の Authentication > ログイン方法 で「匿名」を有効にしてください"
+                e is FirebaseAuthException -> "ログインに失敗しました($detail)"
+                detail.contains("permission", true) ->
+                    "データベースへのアクセスが拒否されました。Realtime Database のルールに database.rules.json の内容を貼り付けて公開してください"
+                else -> "通信エラー: ${e.javaClass.simpleName} $detail"
+            }
+        }
     }
 }

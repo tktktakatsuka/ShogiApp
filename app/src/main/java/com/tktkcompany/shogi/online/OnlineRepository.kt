@@ -23,3 +23,6 @@ interface OnlineRepository {
 }
 
 class OnlineException(message: String) : Exception(message)
+
+/** オンライン対戦の準備状況。repository が null なら problem に使えない理由が入る。 */
+data class OnlineSetup(val repository: OnlineRepository?, val problem: String?)

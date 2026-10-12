@@ -42,6 +42,7 @@ fun ShogiApp(viewModel: ShogiViewModel = viewModel()) {
         when (viewModel.screen) {
             Screen.HOME -> HomeScreen(
                 onlineAvailable = viewModel.onlineAvailable,
+                onlineProblem = viewModel.onlineProblem,
                 onStart = viewModel::startLocalGame,
                 onOnline = viewModel::openLobby,
             )
@@ -63,6 +64,7 @@ fun ShogiApp(viewModel: ShogiViewModel = viewModel()) {
 @Composable
 private fun HomeScreen(
     onlineAvailable: Boolean,
+    onlineProblem: String?,
     onStart: (GameMode) -> Unit,
     onOnline: () -> Unit,
 ) {
@@ -81,8 +83,9 @@ private fun HomeScreen(
         MenuButton(GameMode.ONLINE.label, enabled = onlineAvailable, onClick = onOnline)
         if (!onlineAvailable) {
             Text(
-                "オンライン対戦を使うには Firebase の設定(google-services.json)が必要です",
+                onlineProblem ?: "オンライン対戦を使うには Firebase の設定(google-services.json)が必要です",
                 style = MaterialTheme.typography.bodySmall,
+                color = PromotedText,
                 textAlign = TextAlign.Center,
             )
         }

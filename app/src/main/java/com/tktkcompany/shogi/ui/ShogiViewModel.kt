@@ -77,13 +77,17 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     /** CPU は後手を担当する。 */
     private val cpuPlayer = Player.GOTE
 
-    private val repository: OnlineRepository? = FirebaseOnlineRepository.createOrNull(application)
+    private val onlineSetup = FirebaseOnlineRepository.create(application)
+    private val repository: OnlineRepository? = onlineSetup.repository
     private var roomJob: Job? = null
     private var online: OnlineSession? = null
     private var resultDismissed = false
 
     /** Firebase が設定されていればオンライン対戦を使える。 */
     val onlineAvailable: Boolean get() = repository != null
+
+    /** オンライン対戦が使えない理由。 */
+    val onlineProblem: String? get() = onlineSetup.problem
 
     var screen by mutableStateOf(Screen.HOME)
         private set
