@@ -43,6 +43,11 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        // 検討用エンジン(jniLibs の libyaneuraou.so)は別プロセスとして実行するので、
+        // インストール時に APK から取り出してもらう必要がある。
+        jniLibs.useLegacyPackaging = true
+    }
 }
 
 dependencies {

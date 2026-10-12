@@ -36,10 +36,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tktkcompany.shogi.ui.components.ShuButton
 import com.tktkcompany.shogi.ui.components.SumiButton
+import com.tktkcompany.shogi.ui.theme.AiHint
 import com.tktkcompany.shogi.ui.theme.Kincha
 import com.tktkcompany.shogi.ui.theme.Kinari
 import com.tktkcompany.shogi.ui.theme.Mincho
@@ -47,10 +49,11 @@ import com.tktkcompany.shogi.ui.theme.Shu
 import com.tktkcompany.shogi.ui.theme.Sumi
 import com.tktkcompany.shogi.ui.theme.WashiShade
 
-/** 感想戦の操作ボタン(最初・1手戻る・1手進む・最後・本譜に戻る)。 */
+/** 感想戦の操作ボタン(最初・1手戻る・1手進む・最後・本譜に戻る)と、AIの最善手。 */
 @Composable
-fun ReviewControls(review: ReviewUi, viewModel: ShogiViewModel) {
+fun ReviewControls(review: ReviewUi, ai: AiUi?, viewModel: ShogiViewModel) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (viewModel.aiAvailable) AiRow(ai, onToggle = viewModel::toggleAi)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
             val canBack = review.index > 0 || review.isVariation
             val canForward = !review.isVariation && review.index < review.total
@@ -72,6 +75,60 @@ fun ReviewControls(review: ReviewUi, viewModel: ShogiViewModel) {
                 TextButton(onClick = viewModel::reviewBackToMainLine) {
                     Text("本譜に戻る", fontFamily = Mincho, color = Sumi, fontWeight = FontWeight.Bold)
                 }
+            }
+        }
+    }
+}
+
+/** AIの最善手の表示を切り替えるボタンと、最善手・形勢・読み筋。 */
+@Composable
+private fun AiRow(ai: AiUi?, onToggle: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().height(46.dp),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .background(if (ai != null) AiHint else WashiShade, RoundedCornerShape(6.dp))
+                .border(1.dp, AiHint, RoundedCornerShape(6.dp))
+                .clickable(onClick = onToggle)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Text(
+                "AIの最善手",
+                fontFamily = Mincho,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = if (ai != null) Kinari else AiHint,
+            )
+        }
+        if (ai == null) return@Row
+        Column(Modifier.weight(1f)) {
+            val best = ai.line.firstOrNull()
+            Text(
+                when {
+                    ai.note != null -> ai.note
+                    best == null -> "考えています…"
+                    else -> "$best　${ai.score}" + if (ai.thinking) " …" else ""
+                },
+                fontFamily = Mincho,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = Sumi,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (ai.line.size > 1) {
+                Text(
+                    "読み筋　" + ai.line.drop(1).joinToString(" "),
+                    fontFamily = Mincho,
+                    fontSize = 12.sp,
+                    color = Sumi.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

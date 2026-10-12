@@ -6,9 +6,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.tktkcompany.shogi.engine.UsiEngine
+import com.tktkcompany.shogi.game.Analysis
 import com.tktkcompany.shogi.game.Cpu
 import com.tktkcompany.shogi.game.Game
 import com.tktkcompany.shogi.game.GameResult
+import com.tktkcompany.shogi.game.Kifu
 import com.tktkcompany.shogi.game.Move
 import com.tktkcompany.shogi.game.PieceType
 import com.tktkcompany.shogi.game.Player
@@ -26,9 +29,13 @@ import com.tktkcompany.shogi.online.RoomStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
 
 enum class GameMode(val label: String) {
     VS_CPU("CPUと対局"),
@@ -64,6 +71,20 @@ data class ReviewUi(
     val mainNotations: List<String>,
 )
 
+/** 感想戦でAIが示す最善手。 */
+data class AiUi(
+    val thinking: Boolean,
+    /** 盤上に矢印で示す最善手。 */
+    val bestMove: Move? = null,
+    /** 形勢(例: "+350 先手有利")。 */
+    val score: String = "",
+    /** 読み筋の棋譜表記(先頭が最善手)。 */
+    val line: List<String> = emptyList(),
+    val depth: Int = 0,
+    /** 最善手を出せないときの説明(詰みの局面など)。 */
+    val note: String? = null,
+)
+
 /** チャットの1行。 */
 data class ChatLine(val id: String, val text: String, val mine: Boolean)
 
@@ -88,6 +109,8 @@ data class UiState(
     val chat: List<ChatLine> = emptyList(),
     /** オンラインで相手が感想戦を始めたが、自分はまだ入っていない。 */
     val partnerInReview: Boolean = false,
+    /** 感想戦でAIの最善手を表示中なら non-null(自分の画面だけに出る)。 */
+    val ai: AiUi? = null,
 ) {
     val inCheck: Boolean get() = position.isInCheck(position.turn)
 
@@ -117,6 +140,20 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
     /** 感想戦中なら non-null。 */
     private var review: Review? = null
     private var reviewState = ReviewState(0)
+
+    /** 感想戦で最善手を調べる将棋エンジン(scripts/build-engine.ps1 で用意する)。 */
+    private val engine = UsiEngine(
+        executable = File(application.applicationInfo.nativeLibraryDir, ENGINE_FILE),
+        workDir = application.filesDir,
+    )
+    private var aiEnabled = false
+    private var aiJob: Job? = null
+
+    /** いまAIに調べさせている(または調べ終わった)局面。 */
+    private var aiPosition: Position? = null
+
+    /** エンジンがアプリに入っていれば、感想戦でAIの最善手を表示できる。 */
+    val aiAvailable: Boolean = engine.isAvailable
 
     /** Firebase が設定されていればオンライン対戦を使える。 */
     val onlineAvailable: Boolean get() = repository != null
@@ -151,6 +188,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         cpuJob?.cancel()
         game = Game()
         review = null
+        stopAi()
         resultDismissed = false
         state = UiState(game.position, mode)
         screen = Screen.GAME
@@ -221,6 +259,7 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
         online = null
         latestRoom = null
         review = null
+        stopAi()
     }
 
     private fun observeRoom(repo: OnlineRepository, code: String, uid: String) {
@@ -280,7 +319,80 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun exitReview() {
         review = null
+        stopAi()
         refresh()
+    }
+
+    // ---- 感想戦: AIの最善手 ----
+
+    /** AIの最善手の表示を切り替える。表示中は、局面を動かすたびに調べ直す。 */
+    fun toggleAi() {
+        if (review == null || !aiAvailable) return
+        if (aiEnabled) {
+            stopAi()
+            state = state.copy(ai = null)
+        } else {
+            aiEnabled = true
+            analyze(displayPosition(), state.lastMove)
+        }
+    }
+
+    private fun stopAi() {
+        aiEnabled = false
+        aiPosition = null
+        aiJob?.cancel()
+        // エンジンはメモリを数百MB使うので、表示をやめたら終了させる(次に使うときに起動し直す)
+        engine.close()
+    }
+
+    private fun analyze(position: Position, previous: Move?) {
+        aiJob?.cancel()
+        engine.stop()
+        aiPosition = position
+        if (position.legalMoves().isEmpty()) {
+            state = state.copy(ai = AiUi(thinking = false, note = "指せる手がありません(詰み)"))
+            return
+        }
+        state = state.copy(ai = AiUi(thinking = true))
+        aiJob = viewModelScope.launch {
+            val updates = Channel<Analysis>(Channel.CONFLATED)
+            val shown = launch {
+                for (analysis in updates) state = state.copy(ai = aiUi(position, previous, analysis, thinking = true))
+            }
+            try {
+                engine.analyze(position, AI_THINK_MILLIS) { updates.trySend(it) }
+            } catch (e: IOException) {
+                // 表示をやめてエンジンを終了させたときもここに来る
+                ensureActive()
+                shown.cancel()
+                state = state.copy(ai = AiUi(thinking = false, note = "AIを起動できませんでした"))
+                return@launch
+            } finally {
+                updates.close()
+            }
+            shown.join()
+            state = state.copy(ai = state.ai?.copy(thinking = false))
+        }
+    }
+
+    private fun aiUi(position: Position, previous: Move?, analysis: Analysis, thinking: Boolean): AiUi {
+        // 読み筋を棋譜表記にする(念のため、反則になる手が出てきたらそこで打ち切る)
+        val line = mutableListOf<String>()
+        var pos = position
+        var last = previous
+        for (move in analysis.pv.take(AI_LINE_LENGTH)) {
+            if (!pos.isLegal(move)) break
+            line += Kifu.format(pos, move, last)
+            pos = pos.apply(move)
+            last = move
+        }
+        return AiUi(
+            thinking = thinking,
+            bestMove = analysis.bestMove.takeIf { line.isNotEmpty() },
+            score = analysis.describe(position.turn),
+            line = line,
+            depth = analysis.depth,
+        )
     }
 
     fun reviewFirst() = updateReview { it.jumpTo(0) }
@@ -526,10 +638,29 @@ class ShogiViewModel(application: Application) : AndroidViewModel(application) {
             chat = latestRoom?.chat.orEmpty().map { ChatLine(it.id, it.text, mine = it.by == myUid) },
             partnerInReview = r == null && game.isOver &&
                 latestRoom?.review?.by.let { it != null && it != myUid },
+            ai = if (r != null && aiEnabled) state.ai else null,
         )
+        // AIの最善手を表示中に局面が動いたら調べ直す
+        if (r != null && aiEnabled && aiPosition?.toSfen() != position.toSfen()) {
+            analyze(position, state.lastMove)
+        }
+    }
+
+    override fun onCleared() {
+        aiJob?.cancel()
+        engine.close()
     }
 
     private companion object {
         const val KEY_SOUND = "sound"
+
+        /** 実行できるのはネイティブライブラリとして入れたファイルだけなので、lib〜.so という名前にしている。 */
+        const val ENGINE_FILE = "libyaneuraou.so"
+
+        /** 1局面を調べる時間。 */
+        const val AI_THINK_MILLIS = 3000L
+
+        /** 表示する読み筋の手数。 */
+        const val AI_LINE_LENGTH = 6
     }
 }

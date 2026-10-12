@@ -27,6 +27,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -39,6 +41,7 @@ import com.tktkcompany.shogi.game.Move
 import com.tktkcompany.shogi.game.Player
 import com.tktkcompany.shogi.game.Position
 import com.tktkcompany.shogi.game.Square
+import com.tktkcompany.shogi.ui.theme.AiHint
 import com.tktkcompany.shogi.ui.theme.BoardDark
 import com.tktkcompany.shogi.ui.theme.BoardEdge
 import com.tktkcompany.shogi.ui.theme.BoardGrain
@@ -96,6 +99,8 @@ fun BoardView(
     moveCount: Int,
     onSquareTapped: (Square) -> Unit,
     modifier: Modifier = Modifier,
+    /** 矢印で示す手(感想戦でのAIの最善手)。 */
+    hintMove: Move? = null,
 ) {
     val flipped = viewer == Player.GOTE
     val onTap by rememberUpdatedState(onSquareTapped)
@@ -230,6 +235,43 @@ fun BoardView(
                             .background(TargetDot, CircleShape),
                     )
                 }
+            }
+
+            // AIの最善手(動かす手は矢印、打つ手は打つマスを丸で囲む)
+            if (hintMove != null) {
+                val from = hintMove.from
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .zIndex(3f)
+                        .drawBehind {
+                            val c = size.width / 9
+                            fun center(sq: Square) =
+                                Offset((displayCol(sq) + 0.5f) * c, (displayRow(sq) + 0.5f) * c)
+                            val color = AiHint.copy(alpha = 0.8f)
+                            val end = center(hintMove.to)
+                            if (from == null) {
+                                drawCircle(color, radius = c * 0.42f, center = end, style = Stroke(c * 0.1f))
+                                return@drawBehind
+                            }
+                            val start = center(from)
+                            val length = (end - start).getDistance()
+                            val dir = (end - start) / length
+                            val side = Offset(-dir.y, dir.x)
+                            val head = c * 0.34f
+                            val neck = end - dir * head
+                            drawLine(color, start + dir * (c * 0.2f), neck, strokeWidth = c * 0.14f)
+                            drawPath(
+                                Path().apply {
+                                    moveTo(end.x, end.y)
+                                    (neck + side * (head * 0.6f)).let { lineTo(it.x, it.y) }
+                                    (neck - side * (head * 0.6f)).let { lineTo(it.x, it.y) }
+                                    close()
+                                },
+                                color,
+                            )
+                        },
+                )
             }
         }
     }

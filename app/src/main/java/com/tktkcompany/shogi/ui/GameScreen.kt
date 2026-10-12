@@ -109,6 +109,7 @@ fun GameScreen(viewModel: ShogiViewModel) {
                 selected = (state.selection as? Selection.OnBoard)?.square,
                 targets = state.targets,
                 lastMove = state.lastMove,
+                hintMove = state.ai?.bestMove,
                 moveCount = state.moveCount,
                 onSquareTapped = viewModel::onSquareTapped,
             )
@@ -125,7 +126,7 @@ fun GameScreen(viewModel: ShogiViewModel) {
             compact = review != null,
         )
         if (review != null) {
-            ReviewControls(review, viewModel)
+            ReviewControls(review, state.ai, viewModel)
             ReviewBottomPanel(state, viewModel, Modifier.weight(1f))
             return@Column
         }

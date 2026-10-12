@@ -39,6 +39,9 @@ val SelectedSquare = Color(0x6638A169)
 val TargetDot = Color(0x99306E4A)
 val LastMoveSquare = Color(0x55E8743B)
 
+/** AIの最善手(藍色)。 */
+val AiHint = Color(0xFF2F5D8A)
+
 /** 明朝体(端末の Serif フォント。日本語環境では Noto Serif CJK など)。 */
 val Mincho = FontFamily.Serif
 
