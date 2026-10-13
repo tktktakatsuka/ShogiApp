@@ -32,7 +32,7 @@ android {
         applicationId = "com.tktkcompany.shogi"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
+        versionCode = 4
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
