@@ -47,7 +47,7 @@
     <string name="review_with_chat">Review (with chat)</string>
     <string name="undo">Undo</string>
     <string name="resign">Resign</string>
-    <string name="new_game">New game</string>
+    <string name="new_game">New</string>
 
     <!-- Results -->
     <string name="result_checkmate">Checkmate. %1$s wins</string>
@@ -77,7 +77,7 @@
 
     <!-- Review -->
     <string name="review_title">Review %1$d / %2$d</string>
-    <string name="review_title_variation">Review %1$d / %2$d (variation: %3$d)</string>
+    <string name="review_title_variation">Review %1$d / %2$d (+%3$d)</string>
     <string name="variation_line">Variation: %1$s</string>
     <string name="back_to_main_line">Back to main line</string>
     <string name="ai_thinking">Thinking…</string>
